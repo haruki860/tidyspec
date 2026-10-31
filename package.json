@@ -1,0 +1,20 @@
+{
+  "name": "tidyspec",
+  "version": "0.0.0",
+  "description": "Keep per-screen specs short, in Markdown, written by your coding agent. Preview them and catch stale ones.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
