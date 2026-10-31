@@ -151,15 +151,6 @@ function planConfig(loaded: LoadedConfig, answers: InitAnswers): Part {
   };
 }
 
-// Claude Code は CLAUDE.md を読む。AGENTS.md への道が無ければ、指示文が届かない。
-async function claudeMdNotes(root: string): Promise<string[]> {
-  const claude = await readIfExists(path.join(root, "CLAUDE.md"));
-  if (claude === undefined || claude.includes("AGENTS.md")) return [];
-  return [
-    "CLAUDE.md exists but does not mention AGENTS.md. Claude Code reads CLAUDE.md, so add the line `@AGENTS.md` to it.",
-  ];
-}
-
 async function planInstructions(
   root: string,
   answers: InitAnswers,
@@ -176,14 +167,13 @@ async function planInstructions(
   const block = instructionBlock(answers.language, answers.screensDir, maxLineLength);
   const upserted = upsertBlock(existing, block);
   if (!upserted.ok) return { ok: false, error: `${INSTRUCTIONS_FILE}: ${upserted.error}` };
-  const notes = await claudeMdNotes(root);
   if (upserted.text === existing) {
     const steps: InitStep[] = [{ file: INSTRUCTIONS_FILE, result: "unchanged" }];
-    return { ok: true, part: { steps, notes, writes: [] } };
+    return { ok: true, part: { steps, notes: [], writes: [] } };
   }
   const steps: InitStep[] = [{ file: INSTRUCTIONS_FILE, result: resultOf(existing) }];
   const writes: PendingWrite[] = [{ kind: "file", file, text: upserted.text }];
-  return { ok: true, part: { steps, notes, writes } };
+  return { ok: true, part: { steps, notes: [], writes } };
 }
 
 // 自分たちのフックだけ書く。他のもの（別のフック、フック管理ツール）は触らない。

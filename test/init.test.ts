@@ -300,15 +300,6 @@ describe("applyInit", () => {
     expect(read(repo, ".git/hooks/pre-commit")).toBe(HOOK_SCRIPT);
   });
 
-  it("CLAUDE.md が AGENTS.md に触れていなければ、案内する", async () => {
-    const repo = newRepo();
-    repo.write("CLAUDE.md", "# Claude\n");
-    const result = await applyInit(repo.dir, ANSWERS);
-    expect(result.ok && result.notes[0]).toContain("@AGENTS.md");
-    repo.write("CLAUDE.md", "@AGENTS.md\n");
-    expect(await applyInit(repo.dir, ANSWERS)).toMatchObject({ notes: [] });
-  });
-
   it("--no-hook と --no-instructions 相当は skipped にする", async () => {
     const repo = newRepo();
     const result = await applyInit(repo.dir, {
