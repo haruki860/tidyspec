@@ -130,6 +130,7 @@ describe("sanitize", () => {
     repo.write("docs/screens/login.md", screen("- 判定\u001b]0;pwned\u0007はここ"));
     repo.git("add", "-A");
     const text = renderCheck(await checkCommit(repo.dir, JA), "ja");
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting that no control character reaches the output
     expect(text).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f]/);
     expect(text).toContain("コードの行にファイルパスがありません");
   });

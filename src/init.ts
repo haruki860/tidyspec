@@ -87,6 +87,8 @@ function sameStrings(value: unknown, expected: string[]): boolean {
  * init が書くものを決めて書く。dryRun のときは書かずに、同じ結果だけ返す
  * （確認で見せた内容と、実際に起きることがずれないように、同じ処理を通す）。
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export async function applyInit(
   root: string,
   answers: InitAnswers,
@@ -103,27 +105,26 @@ export async function applyInit(
   // 1. tidyspec.json。他のキー（implementation など）は、書き換えずに残す。
   const configPath = path.join(root, CONFIG_FILE);
   const configText = await readIfExists(configPath);
-  let record: Record<string, unknown> = {};
+  let stored = new Map<string, unknown>();
   let maxLineLength: number | undefined;
   if (configText !== undefined) {
     const parsed = parseConfig(configText);
     if (!parsed.ok) return { ok: false, error: parsed.error };
     const value: unknown = JSON.parse(configText);
-    if (typeof value === "object" && value !== null)
-      record = Object.fromEntries(Object.entries(value));
+    if (typeof value === "object" && value !== null) stored = new Map(Object.entries(value));
     maxLineLength = parsed.config.maxLineLength;
   }
   const screens = [`${answers.screensDir}/**/*.md`];
   if (
     configText !== undefined &&
-    record.language === answers.language &&
-    sameStrings(record.screens, screens)
+    stored.get("language") === answers.language &&
+    sameStrings(stored.get("screens"), screens)
   ) {
     steps.push({ file: CONFIG_FILE, result: "unchanged" });
   } else {
-    record.language = answers.language;
-    record.screens = screens;
-    write(configPath, `${JSON.stringify(record, null, 2)}\n`);
+    stored.set("language", answers.language);
+    stored.set("screens", screens);
+    write(configPath, `${JSON.stringify(Object.fromEntries(stored), null, 2)}\n`);
     steps.push({ file: CONFIG_FILE, result: configText === undefined ? "created" : "updated" });
   }
 

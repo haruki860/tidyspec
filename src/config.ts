@@ -19,6 +19,7 @@ function isStringArray(value: unknown): value is string[] {
  * 設定の JSON を検証する。書かれていない項目は既定値で埋める。
  * 打ち間違いのキーは、黙って無視すると検査が効かないままになるので、エラーにする。
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export function parseConfig(text: string): ConfigResult {
   let value: unknown;
   try {

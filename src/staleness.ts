@@ -38,6 +38,7 @@ export interface CheckOptions {
 }
 
 /** 画面の「コード」が指す各ファイルが、画面の Markdown より新しいかを git の履歴から決める。画面ファイルが無いのは呼び出し側のバグなので投げる。 */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export async function checkStaleness(options: CheckOptions): Promise<ScreenReport> {
   const { repo, screen } = options;
   if (!(await exists(repo, screen))) throw new Error(`screen file not found: ${screen}`);
@@ -135,6 +136,7 @@ async function lastCommit(repo: string, file: string): Promise<string | undefine
   return result.code === 0 && hash !== "" ? hash : undefined;
 }
 
+// biome-ignore lint/complexity/useMaxParams: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 async function isAncestor(
   repo: string,
   ancestor: string,

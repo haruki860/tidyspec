@@ -10,6 +10,7 @@ import type { ScreenStatusReport } from "./status.js";
  * 出力に混ぜる文字列は、必ずこれを通す。
  */
 export function sanitize(text: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point of this function
   return text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, "?");
 }
 
@@ -51,6 +52,7 @@ export function renderCheck(report: HookReport, language: Language = DEFAULT_LAN
   return lines.join("\n");
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export function renderStatus(
   reports: ScreenStatusReport[],
   language: Language = DEFAULT_LANGUAGE,

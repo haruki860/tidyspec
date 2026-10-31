@@ -38,6 +38,8 @@ export interface HookReport {
  * これからコミットされる内容（インデックス）を検査する。作業ツリーは見ない。
  * 文章の正しさは見ず、形と、コードの行の参照、実装を変えたのに仕様が動いていないことだけを見る。
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export async function checkCommit(
   repo: string,
   config: HookConfig = DEFAULT_HOOK_CONFIG,

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -330,16 +330,15 @@ describe("入れたフックが、実際のコミットで効く", () => {
   }
 
   function commit(repo: TestRepo) {
-    try {
-      execFileSync("git", ["-C", repo.dir, "commit", "-q", "-m", "change", "--allow-empty"], {
-        stdio: "pipe",
+    const result = spawnSync(
+      "git",
+      ["-C", repo.dir, "commit", "-q", "-m", "change", "--allow-empty"],
+      {
+        encoding: "utf8",
         env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null" },
-      });
-      return { code: 0, stderr: "" };
-    } catch (error) {
-      const failure = error as { status?: number; stderr?: Buffer };
-      return { code: failure.status ?? -1, stderr: failure.stderr?.toString() ?? "" };
-    }
+      },
+    );
+    return { code: result.status, stderr: result.stderr };
   }
 
   it("tidyspec が問題なしなら、コミットできる", async () => {
