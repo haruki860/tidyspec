@@ -181,6 +181,44 @@ describe("checkCommit", () => {
     expect(await kinds(repo)).toEqual(["screen-problem"]);
   });
 
+  it("スキーマに無いテーブルを「データ」に書いた画面は止める", async () => {
+    const repo = baseRepo();
+    repo.write("db/001.sql", "create table accounts (id int primary key);");
+    repo.write(LOGIN, screen().replace("メールで入れる", "メールで入れる。"));
+    stage(repo);
+    const report = await checkCommit(repo.dir);
+    expect(report.violations).toEqual([
+      {
+        kind: "screen-problem",
+        screen: LOGIN,
+        problem: expect.objectContaining({ kind: "table-not-in-schema", detail: "users" }),
+      },
+    ]);
+  });
+
+  it("テーブルがスキーマにあれば通す。スキーマも、ステージした内容を読む", async () => {
+    const repo = baseRepo();
+    repo.write("db/001.sql", "create table users (id int primary key);");
+    repo.write(LOGIN, screen("- 連続失敗の判定: src/auth/lock.ts\n- 追加: src/other.ts"));
+    stage(repo);
+    repo.write("db/001.sql", "create table accounts (id int primary key);");
+    expect(await kinds(repo)).toEqual([]);
+  });
+
+  it("スキーマが無ければ、テーブル名は検査しない", async () => {
+    const repo = baseRepo();
+    repo.write(LOGIN, screen("- 判定: src/auth/lock.ts\n- 追加: src/other.ts"));
+    stage(repo);
+    expect(await kinds(repo)).toEqual([]);
+  });
+
+  it("触っていない画面のテーブル名が消えても、関係ないコミットは止めない", async () => {
+    const repo = baseRepo();
+    repo.write("db/001.sql", "create table accounts (id int primary key);");
+    stage(repo);
+    expect(await kinds(repo)).toEqual([]);
+  });
+
   it("触っていない画面が崩れていても、関係ないコミットは止めない", async () => {
     const repo = baseRepo();
     repo.write(NEW_POST, "壊れている");

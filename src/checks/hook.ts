@@ -1,7 +1,9 @@
 import { type Config, DEFAULT_CONFIG } from "../config.js";
 import { type CodeEntry, type Problem, parseScreen, severityOf } from "../core/parse.js";
+import type { Schema } from "../core/schema.js";
 import { git } from "../repo/git.js";
 import { repoRelativePath } from "../repo/paths.js";
+import { dataProblems, schemaFrom } from "./schema.js";
 
 export type Violation =
   | { kind: "screen-problem"; screen: string; problem: Problem }
@@ -49,9 +51,9 @@ async function missingCodeFiles(
 async function inspectScreen(
   repo: string,
   screen: string,
-  context: { config: Config; changed: Set<string> },
+  context: { config: Config; changed: Set<string>; schema: Schema | undefined },
 ): Promise<ScreenInspection> {
-  const { config, changed } = context;
+  const { config, changed, schema } = context;
   const source = await readIndexed(repo, screen);
   if (source === undefined) {
     const violations: Violation[] = changed.has(screen)
@@ -67,7 +69,9 @@ async function inspectScreen(
   // 触っていない画面の崩れで、関係ないコミットを止めない。
   if (!changed.has(screen)) return { listed, violations: [], warnings: [] };
 
-  const errors = problems.filter((problem) => severityOf(problem) === "error");
+  const errors = [...problems, ...dataProblems(parsed, schema)].filter(
+    (problem) => severityOf(problem) === "error",
+  );
   const violations: Violation[] = [
     ...errors.map((problem): Violation => ({ kind: "screen-problem", screen, problem })),
     ...(await missingCodeFiles(repo, screen, parsed.code)),
@@ -119,11 +123,12 @@ export async function checkCommit(
   const screenList = await listGlobbed(repo, ["ls-files", "-z", "--", ...config.screens]);
   const screenFiles = new Set(screenList);
 
+  const schema = await indexedSchema(repo, config);
   const violations: Violation[] = [];
   const warnings: Warning[] = [];
   const listedBy = new Map<string, string[]>();
   for (const screen of screenList) {
-    const inspection = await inspectScreen(repo, screen, { config, changed });
+    const inspection = await inspectScreen(repo, screen, { config, changed, schema });
     violations.push(...inspection.violations);
     warnings.push(...inspection.warnings);
     for (const file of inspection.listed)
@@ -133,6 +138,13 @@ export async function checkCommit(
 
   const unregistered = await unregisteredFiles(repo, config, { screenFiles, listedBy });
   return { ok: violations.length === 0, violations, warnings, unregistered };
+}
+
+/** コミットされる内容（インデックス）にある SQL からスキーマを作る。画面と同じ時点を見るため。 */
+async function indexedSchema(repo: string, config: Config): Promise<Schema | undefined> {
+  if (config.schema.length === 0) return undefined;
+  const files = await listGlobbed(repo, ["ls-files", "-z", "--", ...config.schema]);
+  return schemaFrom([...new Set(files)].sort(), (file) => readIndexed(repo, file));
 }
 
 // git が失敗したのに「変更なし」として通すと、検査したことにならない。失敗は呼び出し側に伝える。

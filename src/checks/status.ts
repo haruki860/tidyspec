@@ -4,7 +4,7 @@ import { type ParsedScreen, type Problem, parseScreen } from "../core/parse.js";
 import type { Schema } from "../core/schema.js";
 import { listProjectFiles, readRegularFile } from "../repo/files.js";
 import { checkStaleness, type ScreenReport } from "../repo/staleness.js";
-import { hasTable, loadSchema } from "./schema.js";
+import { dataProblems, loadSchema } from "./schema.js";
 
 export interface ScreenStatusReport {
   screen: string;
@@ -27,14 +27,6 @@ export interface Inspection {
 export async function checkAllScreens(repo: string, config: Config): Promise<ScreenStatusReport[]> {
   const { screens } = await inspectProject(repo, config);
   return screens.map(({ screen, problems, staleness }) => ({ screen, problems, staleness }));
-}
-
-// スキーマがあるのに、「データ」に書いたテーブルがそこに無いのは、書き間違いか消し忘れ。
-function dataProblems(parsed: ParsedScreen, schema: Schema | undefined): Problem[] {
-  if (schema === undefined) return [];
-  return parsed.data
-    .filter((item) => !hasTable(schema, item.text))
-    .map((item) => ({ kind: "table-not-in-schema", line: item.line, detail: item.text }));
 }
 
 async function inspectScreen(

@@ -1,6 +1,6 @@
 # 古さ判定のテストケース
 
-実装済み・テスト済み: 1〜13、16〜19（`test/staleness.test.ts`）、H1〜H7（`test/hook.test.ts`）。14、15 はスキーマ読み取りの段階で作る。
+実装済み・テスト済み: 1〜13、16〜19（`test/staleness.test.ts`）、14、15（`test/status.test.ts`、`test/er.test.ts`）、H1〜H7（`test/hook.test.ts`）。コミット前フックは、ステージした SQL と画面で 14 も検査する（`test/hook.test.ts`）。
 
 一時的な git リポジトリを作り、履歴を再現して期待値を決める。実装より先に、このケースをテストにする。
 
