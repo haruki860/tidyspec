@@ -1,7 +1,7 @@
-import path from "node:path";
 import { git } from "./git.js";
 import { DEFAULT_LANGUAGE, type Language } from "./language.js";
 import { type CodeEntry, type Problem, parseScreen, severityOf } from "./parse.js";
+import { repoRelativePath } from "./paths.js";
 
 export interface HookConfig {
   /** 画面の Markdown。git の glob 形式 */
@@ -64,7 +64,7 @@ export async function checkCommit(
       language: config.language,
     });
     for (const entry of parsed.code) {
-      const key = normalize(entry.path);
+      const key = repoRelativePath(entry.path);
       if (key !== undefined) listedBy.set(key, [...(listedBy.get(key) ?? []), screen]);
     }
     // 触っていない画面の崩れで、関係ないコミットを止めない。
@@ -104,14 +104,6 @@ export async function checkCommit(
   return { ok: violations.length === 0, violations, warnings, unregistered };
 }
 
-// コードの行は信用しない入力。repo の外や絶対パスは、どのファイルとも一致させない。
-function normalize(file: string): string | undefined {
-  const normalized = path.posix.normalize(file);
-  if (normalized === "." || normalized.startsWith("..") || path.posix.isAbsolute(normalized))
-    return undefined;
-  return normalized;
-}
-
 // git が失敗したのに「変更なし」として通すと、検査したことにならない。失敗は呼び出し側に伝える。
 async function listPaths(repo: string, args: string[], globPathspecs = false): Promise<string[]> {
   const result = await git(repo, args, { globPathspecs });
@@ -129,7 +121,7 @@ async function readIndexed(repo: string, file: string): Promise<string | undefin
 }
 
 async function isIndexed(repo: string, entry: CodeEntry): Promise<boolean> {
-  const file = normalize(entry.path);
+  const file = repoRelativePath(entry.path);
   if (file === undefined) return false;
   return (await listPaths(repo, ["ls-files", "-z", "--", file])).includes(file);
 }

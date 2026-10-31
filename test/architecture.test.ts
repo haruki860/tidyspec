@@ -17,6 +17,7 @@ const LAYER_OF: Record<string, Layer> = {
   config: "core",
   git: "repo",
   staleness: "repo",
+  paths: "repo",
   hook: "checks",
   status: "checks",
   render: "checks",

@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { git } from "./git.js";
+import { repoRelativePath } from "./paths.js";
 
 export type FileState =
   | "aligned"
@@ -113,8 +114,8 @@ function unchecked(
 
 // repo の外を指すパスは、無いものとして扱う（コードの行は信用しない）。
 async function exists(repo: string, file: string): Promise<boolean> {
-  const relative = path.relative(repo, path.resolve(repo, file));
-  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) return false;
+  const relative = repoRelativePath(file);
+  if (relative === undefined) return false;
   try {
     return (await stat(path.join(repo, relative))).isFile();
   } catch {
