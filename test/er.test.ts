@@ -180,7 +180,7 @@ describe("画面ページの ER", () => {
     const inspection = await inspectProject(repo.dir, JA);
     const view = inspection.screens[0];
     if (view === undefined) throw new Error("no screen");
-    const html = renderScreenPage(view, inspection, "ja");
+    const html = renderScreenPage(view, inspection, { language: "ja", change: undefined });
     expect(html).toContain('<svg class="er"');
     expect(html).toContain("スキーマにない");
   });
@@ -194,7 +194,7 @@ describe("画面ページの ER", () => {
     const inspection = await inspectProject(repo.dir, JA);
     const view = inspection.screens[0];
     if (view === undefined) throw new Error("no screen");
-    const html = renderScreenPage(view, inspection, "ja");
+    const html = renderScreenPage(view, inspection, { language: "ja", change: undefined });
     expect(html).toContain("carts");
     expect(html).not.toContain("<svg");
   });

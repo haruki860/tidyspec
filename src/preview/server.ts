@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { inspectProject } from "../checks/status.js";
 import type { Config } from "../config.js";
+import { lastChange } from "../repo/history.js";
 import { renderIndex, renderNotFound, renderScreenPage } from "./html.js";
 
 export interface PreviewOptions {
@@ -51,7 +52,10 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
   if (url.pathname === "/screen") {
     // 渡されたパスをファイルとして開かない。検査済みの画面の一覧から、同じ名前のものを探すだけ。
     const view = views.find((candidate) => candidate.screen === url.searchParams.get("file"));
-    if (view) return send(response, 200, renderScreenPage(view, inspection, language));
+    if (view) {
+      const change = await lastChange(options.root, view.screen);
+      return send(response, 200, renderScreenPage(view, inspection, { language, change }));
+    }
   }
   return send(response, 404, renderNotFound(inspection, language));
 }

@@ -58,6 +58,12 @@ ul.items li::marker{color:var(--muted)}
 .toc{position:sticky;top:3rem;align-self:start;font-size:.85rem}
 .toc a{display:block;padding:.25rem 0 .25rem .9rem;color:var(--muted);border-left:1px solid var(--line)}
 .toc a:hover{color:var(--text);border-left-color:var(--accent)}
+.change .hint{color:var(--muted);font-size:.85rem;margin:.2rem 0 .6rem}
+.diff{font-family:var(--mono);font-size:.82rem;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.diff div{padding:.25rem .75rem;white-space:pre-wrap;word-break:break-word}
+.diff .sign{display:inline-block;width:1.2em;color:var(--muted)}
+.diff-add{background:var(--accent-bg)}
+.diff-remove{background:var(--warn-bg)}
 .er-wrap{overflow-x:auto;margin:1rem 0;padding:.75rem;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 .er{display:block;max-width:100%;min-width:480px;height:auto}
 .er-box{fill:var(--bg);stroke:var(--line);stroke-width:1.2}

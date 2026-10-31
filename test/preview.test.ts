@@ -83,7 +83,10 @@ describe("画面の表示", () => {
 
   it("画面に四つの見出しと中身、コードのパスが出る", async () => {
     const repo = repoWith();
-    const html = renderScreenPage(await firstView(repo), await inspectProject(repo.dir, JA), "ja");
+    const html = renderScreenPage(await firstView(repo), await inspectProject(repo.dir, JA), {
+      language: "ja",
+      change: undefined,
+    });
     for (const text of [
       "仕様",
       "設計",
@@ -101,14 +104,20 @@ describe("画面の表示", () => {
     const repo = repoWith();
     repo.write("src/a.ts", "2");
     repo.commit("change code only");
-    const html = renderScreenPage(await firstView(repo), await inspectProject(repo.dir, JA), "ja");
+    const html = renderScreenPage(await firstView(repo), await inspectProject(repo.dir, JA), {
+      language: "ja",
+      change: undefined,
+    });
     expect(html).toContain("実装の方が新しい");
   });
 
   it("画面の中身に仕込まれたタグは、そのまま出ず無害になる", async () => {
     const repo = repoWith(SCREEN.replace("メールで入れる", "<img src=x onerror=alert(1)>"));
     const html = renderIndex(await inspectProject(repo.dir, JA), "ja");
-    const page = renderScreenPage(await firstView(repo), await inspectProject(repo.dir, JA), "ja");
+    const page = renderScreenPage(await firstView(repo), await inspectProject(repo.dir, JA), {
+      language: "ja",
+      change: undefined,
+    });
     expect(page).not.toContain("<img");
     expect(page).toContain("&lt;img src=x onerror=alert(1)&gt;");
     expect(html).not.toContain("<img");
