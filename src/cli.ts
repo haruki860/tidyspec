@@ -2,8 +2,8 @@ import { parseArgs } from "node:util";
 import { loadConfig } from "./config.js";
 import { git } from "./git.js";
 import { checkCommit } from "./hook.js";
-import { isLanguage } from "./language.js";
 import { runInit } from "./initCommand.js";
+import { isLanguage } from "./language.js";
 import type { Prompter } from "./prompter.js";
 import { renderCheck, renderStatus, statusExitCode } from "./render.js";
 import { checkAllScreens } from "./status.js";
@@ -106,7 +106,9 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
 
     if (command === "check") {
       const report = await checkCommit(root, loaded.config);
-      const text = json ? JSON.stringify(report, null, 2) : renderCheck(report, loaded.config.language);
+      const text = json
+        ? JSON.stringify(report, null, 2)
+        : renderCheck(report, loaded.config.language);
       if (report.ok) io.out(text);
       else io.err(text);
       return report.ok ? 0 : 1;

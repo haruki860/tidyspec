@@ -1,7 +1,7 @@
 import path from "node:path";
 import { git } from "./git.js";
 import { DEFAULT_LANGUAGE, type Language } from "./language.js";
-import { parseScreen, severityOf, type CodeEntry, type Problem } from "./parse.js";
+import { type CodeEntry, type Problem, parseScreen, severityOf } from "./parse.js";
 
 export interface HookConfig {
   /** 画面の Markdown。git の glob 形式 */
@@ -57,7 +57,10 @@ export async function checkCommit(
       if (changed.has(screen)) violations.push({ kind: "screen-unreadable", screen });
       continue;
     }
-    const { screen: parsed, problems } = parseScreen(source, { maxLineLength: config.maxLineLength, language: config.language });
+    const { screen: parsed, problems } = parseScreen(source, {
+      maxLineLength: config.maxLineLength,
+      language: config.language,
+    });
     for (const entry of parsed.code) {
       const key = normalize(entry.path);
       if (key !== undefined) listedBy.set(key, [...(listedBy.get(key) ?? []), screen]);
@@ -65,7 +68,8 @@ export async function checkCommit(
     // 触っていない画面の崩れで、関係ないコミットを止めない。
     if (!changed.has(screen)) continue;
     for (const problem of problems) {
-      if (severityOf(problem) === "error") violations.push({ kind: "screen-problem", screen, problem });
+      if (severityOf(problem) === "error")
+        violations.push({ kind: "screen-problem", screen, problem });
       else warnings.push({ screen, problem });
     }
     for (const entry of parsed.code) {
@@ -101,7 +105,8 @@ export async function checkCommit(
 // コードの行は信用しない入力。repo の外や絶対パスは、どのファイルとも一致させない。
 function normalize(file: string): string | undefined {
   const normalized = path.posix.normalize(file);
-  if (normalized === "." || normalized.startsWith("..") || path.posix.isAbsolute(normalized)) return undefined;
+  if (normalized === "." || normalized.startsWith("..") || path.posix.isAbsolute(normalized))
+    return undefined;
   return normalized;
 }
 

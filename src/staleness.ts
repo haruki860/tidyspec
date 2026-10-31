@@ -52,7 +52,8 @@ export async function checkStaleness(options: CheckOptions): Promise<ScreenRepor
 
   // 浅い clone は「最後に変えたコミット」が境界のコミットになり、前後関係が信用できない。
   const shallow = await git(repo, ["rev-parse", "--is-shallow-repository"]);
-  if (shallow.stdout.trim() === "true") return unchecked(present, anyMissing ? "missing" : "unknown");
+  if (shallow.stdout.trim() === "true")
+    return unchecked(present, anyMissing ? "missing" : "unknown");
 
   // 画面の Markdown に未コミットの変更（新規含む）があるときは、今まさに書かれている。
   // 全ての実装より新しいものとして扱う。
@@ -145,7 +146,8 @@ async function isAncestor(
   if (cached !== undefined) return cached;
   const result = await git(repo, ["merge-base", "--is-ancestor", ancestor, descendant]);
   // 終了コード 1 は「祖先ではない」。それ以外は git の失敗。
-  if (result.code !== 0 && result.code !== 1) throw new Error(`git merge-base failed (exit ${result.code})`);
+  if (result.code !== 0 && result.code !== 1)
+    throw new Error(`git merge-base failed (exit ${result.code})`);
   cache.set(key, result.code === 0);
   return result.code === 0;
 }

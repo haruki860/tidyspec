@@ -30,7 +30,10 @@ function terminalPrompter(): { prompter: Prompter; close(): void } {
 
   const prompter: Prompter = {
     async select(question, choices, fallback) {
-      const fallbackIndex = Math.max(0, choices.findIndex((choice) => choice.value === fallback));
+      const fallbackIndex = Math.max(
+        0,
+        choices.findIndex((choice) => choice.value === fallback),
+      );
       for (;;) {
         const list = choices.map((choice, i) => `  ${i + 1}) ${choice.label}`).join("\n");
         const answer = (await read(`${question}\n${list}\nChoose [${fallbackIndex + 1}]: `)).trim();
@@ -42,7 +45,9 @@ function terminalPrompter(): { prompter: Prompter; close(): void } {
     },
     async confirm(question, fallback) {
       for (;;) {
-        const answer = (await read(`${question} [${fallback ? "Y/n" : "y/N"}]: `)).trim().toLowerCase();
+        const answer = (await read(`${question} [${fallback ? "Y/n" : "y/N"}]: `))
+          .trim()
+          .toLowerCase();
         if (answer === "") return fallback;
         if (answer === "y" || answer === "yes") return true;
         if (answer === "n" || answer === "no") return false;

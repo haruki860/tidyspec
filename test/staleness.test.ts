@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -161,7 +161,11 @@ describe("staleness", () => {
   });
 
   it("13: 同じ実装を載せる画面は、全部が新しいと出る", async () => {
-    const repo = repoWith({ "a.ts": "1", "login.md": "# ログイン\n", "new.md": "# カートに入れる\n" });
+    const repo = repoWith({
+      "a.ts": "1",
+      "login.md": "# ログイン\n",
+      "new.md": "# カートに入れる\n",
+    });
     repo.write("a.ts", "2");
     repo.commit("change shared");
     expect((await check(repo, ["a.ts"], "login.md")).status).toBe("stale");
@@ -200,7 +204,12 @@ describe("staleness", () => {
   });
 
   it("コードの行がパス指定の記法に見えても、文字どおりのファイル名として扱う", async () => {
-    const repo = repoWith({ "a.ts": "1", ":(glob)*.ts": "1", "-x.ts": "1", "login.md": "# ログイン\n" });
+    const repo = repoWith({
+      "a.ts": "1",
+      ":(glob)*.ts": "1",
+      "-x.ts": "1",
+      "login.md": "# ログイン\n",
+    });
     repo.write("a.ts", "2");
     repo.commit("change a.ts only");
     repo.write("login.md", "# ログイン\n\n- 変えた\n");

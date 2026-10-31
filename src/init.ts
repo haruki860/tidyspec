@@ -33,12 +33,23 @@ export type DirResult = { ok: true; dir: string } | { ok: false; error: string }
  */
 export function validateScreensDir(input: string): DirResult {
   const trimmed = input.trim().replace(/\/+$/, "");
-  if (trimmed === "" || trimmed.startsWith("/") || trimmed.includes("\\") || /[*?[\]{}!:\0]/.test(trimmed)) {
-    return { ok: false, error: `not a usable directory: ${JSON.stringify(input)} (use a relative path like docs/screens)` };
+  if (
+    trimmed === "" ||
+    trimmed.startsWith("/") ||
+    trimmed.includes("\\") ||
+    /[*?[\]{}!:\0]/.test(trimmed)
+  ) {
+    return {
+      ok: false,
+      error: `not a usable directory: ${JSON.stringify(input)} (use a relative path like docs/screens)`,
+    };
   }
   const normalized = path.posix.normalize(trimmed);
   if (normalized === "." || normalized.split("/").includes("..")) {
-    return { ok: false, error: `the screens directory must be inside the repository: ${JSON.stringify(input)}` };
+    return {
+      ok: false,
+      error: `the screens directory must be inside the repository: ${JSON.stringify(input)}`,
+    };
   }
   return { ok: true, dir: normalized };
 }
@@ -65,7 +76,11 @@ async function readIfExists(file: string): Promise<string | undefined> {
 }
 
 function sameStrings(value: unknown, expected: string[]): boolean {
-  return Array.isArray(value) && value.length === expected.length && value.every((item, i) => item === expected[i]);
+  return (
+    Array.isArray(value) &&
+    value.length === expected.length &&
+    value.every((item, i) => item === expected[i])
+  );
 }
 
 /**
@@ -94,11 +109,16 @@ export async function applyInit(
     const parsed = parseConfig(configText);
     if (!parsed.ok) return { ok: false, error: parsed.error };
     const value: unknown = JSON.parse(configText);
-    if (typeof value === "object" && value !== null) record = Object.fromEntries(Object.entries(value));
+    if (typeof value === "object" && value !== null)
+      record = Object.fromEntries(Object.entries(value));
     maxLineLength = parsed.config.maxLineLength;
   }
   const screens = [`${answers.screensDir}/**/*.md`];
-  if (configText !== undefined && record.language === answers.language && sameStrings(record.screens, screens)) {
+  if (
+    configText !== undefined &&
+    record.language === answers.language &&
+    sameStrings(record.screens, screens)
+  ) {
     steps.push({ file: CONFIG_FILE, result: "unchanged" });
   } else {
     record.language = answers.language;
@@ -118,11 +138,16 @@ export async function applyInit(
       steps.push({ file: INSTRUCTIONS_FILE, result: "unchanged" });
     } else {
       write(file, upserted.text);
-      steps.push({ file: INSTRUCTIONS_FILE, result: existing === undefined ? "created" : "updated" });
+      steps.push({
+        file: INSTRUCTIONS_FILE,
+        result: existing === undefined ? "created" : "updated",
+      });
     }
     const claude = await readIfExists(path.join(root, "CLAUDE.md"));
     if (claude !== undefined && !claude.includes("AGENTS.md")) {
-      notes.push("CLAUDE.md exists but does not mention AGENTS.md. Claude Code reads CLAUDE.md, so add the line `@AGENTS.md` to it.");
+      notes.push(
+        "CLAUDE.md exists but does not mention AGENTS.md. Claude Code reads CLAUDE.md, so add the line `@AGENTS.md` to it.",
+      );
     }
   } else {
     steps.push({ file: INSTRUCTIONS_FILE, result: "skipped" });
@@ -135,11 +160,15 @@ export async function applyInit(
     switch (hook.kind) {
       case "custom-hooks-path":
         steps.push({ file: "pre-commit hook", result: "skipped" });
-        notes.push(`core.hooksPath is set to "${hook.value}" (a hook manager such as husky or lefthook?). Left untouched. Add \`${command}\` to its pre-commit step.`);
+        notes.push(
+          `core.hooksPath is set to "${hook.value}" (a hook manager such as husky or lefthook?). Left untouched. Add \`${command}\` to its pre-commit step.`,
+        );
         break;
       case "foreign":
         steps.push({ file: path.relative(root, hook.file), result: "skipped" });
-        notes.push(`A pre-commit hook already exists at ${path.relative(root, hook.file)}. Left untouched. Add \`${command}\` to it.`);
+        notes.push(
+          `A pre-commit hook already exists at ${path.relative(root, hook.file)}. Left untouched. Add \`${command}\` to it.`,
+        );
         break;
       case "ours":
       case "none": {

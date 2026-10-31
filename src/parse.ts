@@ -1,4 +1,11 @@
-import { DEFAULT_LANGUAGE, HEADINGS, SECTION_KEYS, sectionOf, type Language, type SectionKey } from "./language.js";
+import {
+  DEFAULT_LANGUAGE,
+  HEADINGS,
+  type Language,
+  SECTION_KEYS,
+  type SectionKey,
+  sectionOf,
+} from "./language.js";
 
 /** 一行の長さの上限（コードポイント）。サンプルの最長行から仮に決めた値で、変わりうる。 */
 export const DEFAULT_MAX_LINE_LENGTH = 80;
@@ -127,7 +134,8 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
       const marker = fenceMatch[1] ?? "";
       if (fence === null) {
         fence = marker;
-        if (cursor.kind === "section") problems.push({ kind: "not-a-bullet", line, detail: raw.trim() });
+        if (cursor.kind === "section")
+          problems.push({ kind: "not-a-bullet", line, detail: raw.trim() });
       } else if (fence === marker) {
         fence = null;
       }
@@ -208,7 +216,8 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
 
   if (screen.title === null) problems.push({ kind: "missing-title", line: null, detail: "" });
   for (const key of SECTION_KEYS) {
-    if (!seen.has(key)) problems.push({ kind: "missing-heading", line: null, detail: HEADINGS[language][key] });
+    if (!seen.has(key))
+      problems.push({ kind: "missing-heading", line: null, detail: HEADINGS[language][key] });
   }
   return { screen, problems };
 }

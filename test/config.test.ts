@@ -29,12 +29,18 @@ describe("parseConfig", () => {
   });
 
   it("language を選べる。既定は英語", () => {
-    expect(parseConfig('{"language":"ja"}')).toMatchObject({ ok: true, config: { language: "ja" } });
+    expect(parseConfig('{"language":"ja"}')).toMatchObject({
+      ok: true,
+      config: { language: "ja" },
+    });
     expect(parseConfig("{}")).toMatchObject({ ok: true, config: { language: "en" } });
   });
 
   it("implementation は空の配列でもよい（未登録の通知を使わない）", () => {
-    expect(parseConfig('{"implementation":[]}')).toMatchObject({ ok: true, config: { implementation: [] } });
+    expect(parseConfig('{"implementation":[]}')).toMatchObject({
+      ok: true,
+      config: { implementation: [] },
+    });
   });
 
   it.each([

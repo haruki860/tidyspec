@@ -10,7 +10,9 @@ export type ConfigResult = { ok: true; config: HookConfig } | { ok: false; error
 const KNOWN_KEYS = ["screens", "implementation", "maxLineLength", "language"];
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.trim() !== "");
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string" && item.trim() !== "")
+  );
 }
 
 /**
@@ -50,7 +52,11 @@ export function parseConfig(text: string): ConfigResult {
     config.implementation = implementation;
   }
   if (maxLineLength !== undefined) {
-    if (typeof maxLineLength !== "number" || !Number.isInteger(maxLineLength) || maxLineLength < 1) {
+    if (
+      typeof maxLineLength !== "number" ||
+      !Number.isInteger(maxLineLength) ||
+      maxLineLength < 1
+    ) {
       return { ok: false, error: "maxLineLength must be an integer of 1 or more" };
     }
     config.maxLineLength = maxLineLength;

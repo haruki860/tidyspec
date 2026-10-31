@@ -1,6 +1,12 @@
-import { loadConfig } from "./config.js";
 import type { Io } from "./cli.js";
-import { applyInit, DEFAULT_SCREENS_DIR, screensDirFromConfig, validateScreensDir, type InitStep } from "./init.js";
+import { loadConfig } from "./config.js";
+import {
+  applyInit,
+  DEFAULT_SCREENS_DIR,
+  type InitStep,
+  screensDirFromConfig,
+  validateScreensDir,
+} from "./init.js";
 import { HEADINGS, type Language } from "./language.js";
 
 export interface InitFlags {
@@ -50,7 +56,10 @@ export async function runInit(root: string, flags: InitFlags, io: Io): Promise<n
   const dirInput =
     flags.screensDir ??
     (ask
-      ? await ask.text("Directory for the screen files?", screensDirFromConfig(current) ?? DEFAULT_SCREENS_DIR)
+      ? await ask.text(
+          "Directory for the screen files?",
+          screensDirFromConfig(current) ?? DEFAULT_SCREENS_DIR,
+        )
       : (screensDirFromConfig(current) ?? DEFAULT_SCREENS_DIR));
   const dir = validateScreensDir(dirInput);
   if (!dir.ok) {
