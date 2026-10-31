@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { checkCommit as checkWith } from "../src/checks/hook.js";
 import { type Config, DEFAULT_CONFIG } from "../src/config.js";
-import { checkCommit as checkWith } from "../src/hook.js";
 import { TestRepo } from "./helpers/repo.js";
 
 // このファイルのフィクスチャは日本語の見出し

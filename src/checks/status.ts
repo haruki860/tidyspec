@@ -1,9 +1,9 @@
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
-import type { Config } from "./config.js";
-import { git } from "./git.js";
-import { type Problem, parseScreen } from "./parse.js";
-import { checkStaleness, type ScreenReport } from "./staleness.js";
+import type { Config } from "../config.js";
+import { type Problem, parseScreen } from "../core/parse.js";
+import { git } from "../repo/git.js";
+import { checkStaleness, type ScreenReport } from "../repo/staleness.js";
 
 export interface ScreenStatusReport {
   screen: string;

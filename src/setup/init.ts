@@ -1,10 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Config } from "./config.js";
-import { CONFIG_FILE, parseConfig } from "./config.js";
+import type { Config } from "../config.js";
+import { CONFIG_FILE, parseConfig } from "../config.js";
+import type { Language } from "../core/language.js";
 import { HOOK_SCRIPT, inspectHook, writeHook } from "./hookfile.js";
 import { instructionBlock, upsertBlock } from "./instructions.js";
-import type { Language } from "./language.js";
 
 export const DEFAULT_SCREENS_DIR = "docs/screens";
 export const INSTRUCTIONS_FILE = "AGENTS.md";

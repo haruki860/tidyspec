@@ -1,6 +1,6 @@
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { git } from "./git.js";
+import { git } from "../repo/git.js";
 
 export const HOOK_START = "# tidyspec:start";
 export const HOOK_END = "# tidyspec:end";

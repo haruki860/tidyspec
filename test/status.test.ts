@@ -1,13 +1,13 @@
 import { rmSync, symlinkSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
+import { checkCommit } from "../src/checks/hook.js";
 import { DEFAULT_CONFIG } from "../src/config.js";
-import { checkCommit } from "../src/hook.js";
 
 // このファイルのフィクスチャは日本語の見出し
 const JA = { ...DEFAULT_CONFIG, language: "ja" as const };
 
-import { renderCheck, renderStatus, sanitize, statusExitCode } from "../src/render.js";
-import { checkAllScreens } from "../src/status.js";
+import { renderCheck, renderStatus, sanitize, statusExitCode } from "../src/checks/render.js";
+import { checkAllScreens } from "../src/checks/status.js";
 import { TestRepo } from "./helpers/repo.js";
 
 const made: TestRepo[] = [];

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { DEFAULT_LANGUAGE, isLanguage, LANGUAGES, type Language } from "./language.js";
+import { DEFAULT_LANGUAGE, isLanguage, LANGUAGES, type Language } from "./core/language.js";
 
 export const CONFIG_FILE = "tidyspec.json";
 

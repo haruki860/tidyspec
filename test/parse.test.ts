@@ -6,7 +6,7 @@ import {
   type ParseOptions,
   parseScreen as parseWith,
   splitCodeLine,
-} from "../src/parse.js";
+} from "../src/core/parse.js";
 
 // このファイルのフィクスチャは日本語の見出し
 const parseScreen = (source: string, options: ParseOptions = {}) =>

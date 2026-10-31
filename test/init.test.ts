@@ -2,18 +2,23 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { run } from "../src/cli.js";
+import { run } from "../src/cli/cli.js";
+import type { Io } from "../src/cli/io.js";
+import type { Prompter } from "../src/cli/prompter.js";
 import { DEFAULT_CONFIG } from "../src/config.js";
-import { HOOK_SCRIPT } from "../src/hookfile.js";
+import { HOOK_SCRIPT } from "../src/setup/hookfile.js";
 import {
   applyInit,
   type InitAnswers,
   screensDirFromConfig,
   validateScreensDir,
-} from "../src/init.js";
-import { BLOCK_END, BLOCK_START, instructionBlock, upsertBlock } from "../src/instructions.js";
-import type { Io } from "../src/io.js";
-import type { Prompter } from "../src/prompter.js";
+} from "../src/setup/init.js";
+import {
+  BLOCK_END,
+  BLOCK_START,
+  instructionBlock,
+  upsertBlock,
+} from "../src/setup/instructions.js";
 import { TestRepo } from "./helpers/repo.js";
 
 const made: TestRepo[] = [];

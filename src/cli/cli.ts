@@ -1,12 +1,12 @@
 import { parseArgs } from "node:util";
-import { loadConfig } from "./config.js";
-import { git } from "./git.js";
-import { checkCommit } from "./hook.js";
+import { checkCommit } from "../checks/hook.js";
+import { renderCheck, renderStatus, statusExitCode } from "../checks/render.js";
+import { checkAllScreens } from "../checks/status.js";
+import { loadConfig } from "../config.js";
+import { isLanguage } from "../core/language.js";
+import { git } from "../repo/git.js";
 import { runInit } from "./initCommand.js";
 import type { Io } from "./io.js";
-import { isLanguage } from "./language.js";
-import { renderCheck, renderStatus, statusExitCode } from "./render.js";
-import { checkAllScreens } from "./status.js";
 
 const USAGE = `Usage: tidyspec <command> [options]
 
