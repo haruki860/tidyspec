@@ -4,3 +4,4 @@ export * from "./hook.js";
 export * from "./config.js";
 export * from "./status.js";
 export * from "./render.js";
+export * from "./cli.js";
