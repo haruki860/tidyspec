@@ -1,6 +1,6 @@
 # 001: Module layout, and how new document kinds plug in
 
-Date: 2026-10-31 / Status: proposed
+Date: 2026-10-31 / Status: accepted (option B; CLI only)
 
 ## Problem
 
@@ -38,12 +38,11 @@ src/
   setup/   init, instructions, hook file
   cli/     cli, commands, prompter, bin
   config.ts
-  index.ts public API, listed by name
 ```
 
 - `repo/paths` is the single decision on "inside the repository?".
 - The dependency direction is enforced by a test (and lint), not by convention.
-- Public API (proposed): `parseScreen`, `checkStaleness`, `checkCommit`, `checkAllScreens`, `loadConfig` and their types. Open question: should this be a library at all, or CLI only?
+- Public API: none. tidyspec ships as a command line tool only. The package exposes the `tidyspec` binary and nothing else (no `main` or `types`, an empty `exports`), so internals can change freely and there is no library API to keep stable. Revisit only if someone needs a library.
 
 ## Consequences
 
