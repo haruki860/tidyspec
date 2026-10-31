@@ -10,8 +10,7 @@ const LAYERS = ["core", "repo", "checks", "setup", "cli"] as const;
 type Layer = (typeof LAYERS)[number];
 
 // 層はディレクトリで決まる。src 直下の config.ts は、どの層からも読める設定なので core 扱い。
-// index.ts は公開 API で、CLI のみ化（決定 001）で消す。
-const ROOT_FILES: Record<string, Layer> = { config: "core", index: "cli" };
+const ROOT_FILES: Record<string, Layer> = { config: "core" };
 
 // 構成を直すたびに縮める。新しい違反を足してはいけないし、直したら消さなければならない。
 const KNOWN_LAYER_VIOLATIONS: string[] = [];
@@ -87,6 +86,14 @@ function normalizeCycle(cycle: string): string {
 }
 
 describe("architecture", () => {
+  it("is CLI only: no src/index.ts, no main/types, empty exports", () => {
+    const pkg: unknown = JSON.parse(readFileSync(path.join(SRC, "..", "package.json"), "utf8"));
+    expect(modules()).not.toContain("index");
+    expect(pkg).toMatchObject({ exports: {}, bin: { tidyspec: "dist/cli/bin.js" } });
+    expect(pkg).not.toHaveProperty("main");
+    expect(pkg).not.toHaveProperty("types");
+  });
+
   it("every module is assigned to a layer", () => {
     const unassigned = modules().filter((module) => layerOf(module) === undefined);
     expect(unassigned).toEqual([]);
