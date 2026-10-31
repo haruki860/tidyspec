@@ -2,8 +2,8 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { type Io, run } from "../src/cli.js";
-import { DEFAULT_HOOK_CONFIG } from "../src/hook.js";
+import { run } from "../src/cli.js";
+import { DEFAULT_CONFIG } from "../src/config.js";
 import { HOOK_SCRIPT } from "../src/hookfile.js";
 import {
   applyInit,
@@ -12,6 +12,7 @@ import {
   validateScreensDir,
 } from "../src/init.js";
 import { BLOCK_END, BLOCK_START, instructionBlock, upsertBlock } from "../src/instructions.js";
+import type { Io } from "../src/io.js";
 import type { Prompter } from "../src/prompter.js";
 import { TestRepo } from "./helpers/repo.js";
 
@@ -152,14 +153,10 @@ describe("validateScreensDir / screensDirFromConfig", () => {
   });
 
   it("設定が「ディレクトリの全ての .md」の形ならディレクトリを取り出す", () => {
-    expect(screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["specs/**/*.md"] })).toBe(
-      "specs",
-    );
+    expect(screensDirFromConfig({ ...DEFAULT_CONFIG, screens: ["specs/**/*.md"] })).toBe("specs");
+    expect(screensDirFromConfig({ ...DEFAULT_CONFIG, screens: ["specs/*.md"] })).toBeUndefined();
     expect(
-      screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["specs/*.md"] }),
-    ).toBeUndefined();
-    expect(
-      screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["a/**/*.md", "b/**/*.md"] }),
+      screensDirFromConfig({ ...DEFAULT_CONFIG, screens: ["a/**/*.md", "b/**/*.md"] }),
     ).toBeUndefined();
   });
 });

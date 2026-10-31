@@ -1,24 +1,7 @@
+import { type Config, DEFAULT_CONFIG } from "./config.js";
 import { git } from "./git.js";
-import { DEFAULT_LANGUAGE, type Language } from "./language.js";
 import { type CodeEntry, type Problem, parseScreen, severityOf } from "./parse.js";
 import { repoRelativePath } from "./paths.js";
-
-export interface HookConfig {
-  /** 画面の Markdown。git の glob 形式 */
-  screens: string[];
-  /** 実装ファイル。「未登録」を知らせるためだけに使い、止めるかどうかには関わらない */
-  implementation: string[];
-  maxLineLength?: number;
-  /** 画面ファイルの見出しと、指摘の文言の言語 */
-  language: Language;
-}
-
-// 画面の置き場と実装のパターンは SPEC に無いので、仮の既定値。
-export const DEFAULT_HOOK_CONFIG: HookConfig = {
-  screens: ["docs/screens/**/*.md"],
-  implementation: ["src/**", "app/**"],
-  language: DEFAULT_LANGUAGE,
-};
 
 export type Violation =
   | { kind: "screen-problem"; screen: string; problem: Problem }
@@ -42,7 +25,7 @@ export interface HookReport {
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export async function checkCommit(
   repo: string,
-  config: HookConfig = DEFAULT_HOOK_CONFIG,
+  config: Config = DEFAULT_CONFIG,
 ): Promise<HookReport> {
   const changed = new Set(
     await listPaths(repo, ["diff", "--cached", "--name-only", "-z", "--no-renames"]),

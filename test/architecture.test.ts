@@ -19,6 +19,7 @@ const LAYER_OF: Record<string, Layer> = {
   staleness: "repo",
   paths: "repo",
   hook: "checks",
+  io: "cli",
   status: "checks",
   render: "checks",
   init: "setup",
@@ -32,11 +33,8 @@ const LAYER_OF: Record<string, Layer> = {
 };
 
 // 構成を直すたびに縮める。新しい違反を足してはいけないし、直したら消さなければならない。
-const KNOWN_LAYER_VIOLATIONS = [
-  "config -> hook (core imports checks)",
-  "messages -> staleness (core imports repo)",
-];
-const KNOWN_CYCLES = ["cli -> initCommand -> cli"];
+const KNOWN_LAYER_VIOLATIONS = ["messages -> staleness (core imports repo)"];
+const KNOWN_CYCLES: string[] = [];
 
 const SRC = path.join(import.meta.dirname, "..", "src");
 const IMPORT = /from "\.\/([A-Za-z]+)\.js"/g;

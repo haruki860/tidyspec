@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { Config } from "./config.js";
 import { CONFIG_FILE, parseConfig } from "./config.js";
-import type { HookConfig } from "./hook.js";
 import { HOOK_SCRIPT, inspectHook, writeHook } from "./hookfile.js";
 import { instructionBlock, upsertBlock } from "./instructions.js";
 import type { Language } from "./language.js";
@@ -55,7 +55,7 @@ export function validateScreensDir(input: string): DirResult {
 }
 
 // 設定の screens が、ディレクトリ名に「全ての .md」の glob を付けた一つだけなら、そのディレクトリ。init を再実行したときの既定値にする。
-export function screensDirFromConfig(config: HookConfig): string | undefined {
+export function screensDirFromConfig(config: Config): string | undefined {
   const [only, ...rest] = config.screens;
   if (only === undefined || rest.length > 0) return undefined;
   const dir = /^(.+)\/\*\*\/\*\.md$/.exec(only)?.[1];

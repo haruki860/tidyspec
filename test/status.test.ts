@@ -1,9 +1,10 @@
 import { rmSync, symlinkSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
-import { checkCommit, DEFAULT_HOOK_CONFIG } from "../src/hook.js";
+import { DEFAULT_CONFIG } from "../src/config.js";
+import { checkCommit } from "../src/hook.js";
 
 // このファイルのフィクスチャは日本語の見出し
-const JA = { ...DEFAULT_HOOK_CONFIG, language: "ja" as const };
+const JA = { ...DEFAULT_CONFIG, language: "ja" as const };
 
 import { renderCheck, renderStatus, sanitize, statusExitCode } from "../src/render.js";
 import { checkAllScreens } from "../src/status.js";

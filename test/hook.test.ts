@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { checkCommit as checkWith, DEFAULT_HOOK_CONFIG, type HookConfig } from "../src/hook.js";
+import { type Config, DEFAULT_CONFIG } from "../src/config.js";
+import { checkCommit as checkWith } from "../src/hook.js";
 import { TestRepo } from "./helpers/repo.js";
 
 // このファイルのフィクスチャは日本語の見出し
-const JA: HookConfig = { ...DEFAULT_HOOK_CONFIG, language: "ja" };
-const checkCommit = (repo: string, config: HookConfig = JA) => checkWith(repo, config);
+const JA: Config = { ...DEFAULT_CONFIG, language: "ja" };
+const checkCommit = (repo: string, config: Config = JA) => checkWith(repo, config);
 
 const made: TestRepo[] = [];
 afterEach(() => {

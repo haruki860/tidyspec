@@ -1,4 +1,3 @@
-import type { Io } from "./cli.js";
 import { loadConfig } from "./config.js";
 import {
   applyInit,
@@ -7,6 +6,7 @@ import {
   screensDirFromConfig,
   validateScreensDir,
 } from "./init.js";
+import type { Io } from "./io.js";
 import { HEADINGS, type Language } from "./language.js";
 
 export interface InitFlags {

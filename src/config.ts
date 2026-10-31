@@ -1,11 +1,27 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { DEFAULT_HOOK_CONFIG, type HookConfig } from "./hook.js";
-import { isLanguage, LANGUAGES } from "./language.js";
+import { DEFAULT_LANGUAGE, isLanguage, LANGUAGES, type Language } from "./language.js";
 
 export const CONFIG_FILE = "tidyspec.json";
 
-export type ConfigResult = { ok: true; config: HookConfig } | { ok: false; error: string };
+export interface Config {
+  /** 画面の Markdown。git の glob 形式 */
+  screens: string[];
+  /** 実装ファイル。「未登録」を知らせるためだけに使い、止めるかどうかには関わらない */
+  implementation: string[];
+  maxLineLength?: number;
+  /** 画面ファイルの見出しと、指摘の文言の言語 */
+  language: Language;
+}
+
+// 画面の置き場と実装のパターンは SPEC に無いので、仮の既定値。
+export const DEFAULT_CONFIG: Config = {
+  screens: ["docs/screens/**/*.md"],
+  implementation: ["src/**", "app/**"],
+  language: DEFAULT_LANGUAGE,
+};
+
+export type ConfigResult = { ok: true; config: Config } | { ok: false; error: string };
 
 const KNOWN_KEYS = ["screens", "implementation", "maxLineLength", "language"];
 
@@ -37,7 +53,7 @@ export function parseConfig(text: string): ConfigResult {
     return { ok: false, error: `${CONFIG_FILE} has unknown keys: ${unknown.join(", ")}` };
   }
 
-  const config: HookConfig = { ...DEFAULT_HOOK_CONFIG };
+  const config: Config = { ...DEFAULT_CONFIG };
 
   const { screens, implementation, maxLineLength, language } = record;
   if (screens !== undefined) {
@@ -78,7 +94,7 @@ export async function loadConfig(repo: string): Promise<ConfigResult> {
     text = await readFile(path.join(repo, CONFIG_FILE), "utf8");
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return { ok: true, config: { ...DEFAULT_HOOK_CONFIG } };
+      return { ok: true, config: { ...DEFAULT_CONFIG } };
     }
     return { ok: false, error: `cannot read ${CONFIG_FILE}` };
   }
