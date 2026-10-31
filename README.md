@@ -15,11 +15,12 @@ Read [SPEC.md](SPEC.md) for the full design and [docs/staleness-cases.md](docs/s
 ## Usage (not published yet)
 
 ```sh
+tidyspec init     # asks a few questions: language, screens directory, hook, agent instructions
 tidyspec check    # inspect what is staged; for a commit hook
 tidyspec status   # are any screens behind the code they point to?
 ```
 
-Both take `--json`. Exit codes: 0 ok, 1 problems found, 2 usage, config or git failure. Settings live in an optional `tidyspec.json` (`screens`, `implementation`, `maxLineLength`, `language`). `language` is `en` (default) or `ja`; it sets the section headings (`Spec / Design / Code / Data` or `仕様 / 設計 / コード / データ`) and the language of the findings. See [examples/shop-en](examples/shop-en) and [examples/shop](examples/shop) (Japanese).
+`init` asks questions only in a terminal; coding agents and CI pass `--yes` (with `--lang`, `--screens-dir`, `--no-hook`, `--no-instructions`). `check` and `status` take `--json`. Exit codes: 0 ok, 1 problems found, 2 usage, config or git failure. Settings live in an optional `tidyspec.json` (`screens`, `implementation`, `maxLineLength`, `language`). `language` is `en` (default) or `ja`; it sets the section headings (`Spec / Design / Code / Data` or `仕様 / 設計 / コード / データ`) and the language of the findings. See [examples/shop-en](examples/shop-en) and [examples/shop](examples/shop) (Japanese).
 
 ## Development
 
