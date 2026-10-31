@@ -58,8 +58,8 @@ ul.items li::marker{color:var(--muted)}
 .toc{position:sticky;top:3rem;align-self:start;font-size:.85rem}
 .toc a{display:block;padding:.25rem 0 .25rem .9rem;color:var(--muted);border-left:1px solid var(--line)}
 .toc a:hover{color:var(--text);border-left-color:var(--accent)}
-.er-wrap{overflow-x:auto;margin:1rem 0;padding:1rem;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-.er{display:block;max-width:100%;min-width:620px;height:auto}
+.er-wrap{overflow-x:auto;margin:1rem 0;padding:.75rem;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.er{display:block;max-width:100%;min-width:480px;height:auto}
 .er-box{fill:var(--bg);stroke:var(--line);stroke-width:1.2}
 .er-rule{stroke:var(--line)}
 .er-title{font:600 14px var(--mono);fill:var(--text)}
