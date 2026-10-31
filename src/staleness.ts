@@ -37,6 +37,7 @@ export interface CheckOptions {
   code: string[];
 }
 
+/** 画面の「コード」が指す各ファイルが、画面の Markdown より新しいかを git の履歴から決める。画面ファイルが無いのは呼び出し側のバグなので投げる。 */
 export async function checkStaleness(options: CheckOptions): Promise<ScreenReport> {
   const { repo, screen } = options;
   if (!(await exists(repo, screen))) throw new Error(`screen file not found: ${screen}`);
