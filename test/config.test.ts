@@ -2,8 +2,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { CONFIG_FILE, loadConfig, parseConfig } from "../src/config.js";
-import { DEFAULT_HOOK_CONFIG } from "../src/hook.js";
+import { CONFIG_FILE, DEFAULT_CONFIG, loadConfig, parseConfig } from "../src/config.js";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -17,14 +16,14 @@ function errorOf(text: string) {
 
 describe("parseConfig", () => {
   it("空のオブジェクトは既定値", () => {
-    expect(parseConfig("{}")).toEqual({ ok: true, config: DEFAULT_HOOK_CONFIG });
+    expect(parseConfig("{}")).toEqual({ ok: true, config: DEFAULT_CONFIG });
   });
 
   it("書いた項目だけ上書きする", () => {
     const result = parseConfig('{"screens":["specs/*.md"],"maxLineLength":60}');
     expect(result).toEqual({
       ok: true,
-      config: { ...DEFAULT_HOOK_CONFIG, screens: ["specs/*.md"], maxLineLength: 60 },
+      config: { ...DEFAULT_CONFIG, screens: ["specs/*.md"], maxLineLength: 60 },
     });
   });
 
@@ -70,7 +69,7 @@ describe("loadConfig", () => {
   }
 
   it("設定ファイルが無ければ既定値", async () => {
-    expect(await loadConfig(tempDir())).toEqual({ ok: true, config: DEFAULT_HOOK_CONFIG });
+    expect(await loadConfig(tempDir())).toEqual({ ok: true, config: DEFAULT_CONFIG });
   });
 
   it("ファイルを読む", async () => {

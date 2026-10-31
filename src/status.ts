@@ -1,7 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
+import type { Config } from "./config.js";
 import { git } from "./git.js";
-import type { HookConfig } from "./hook.js";
 import { type Problem, parseScreen } from "./parse.js";
 import { checkStaleness, type ScreenReport } from "./staleness.js";
 
@@ -12,10 +12,7 @@ export interface ScreenStatusReport {
 }
 
 /** 作業ツリーにある全ての画面について、形の問題と古さを調べる。git の中でだけ動く。 */
-export async function checkAllScreens(
-  repo: string,
-  config: HookConfig,
-): Promise<ScreenStatusReport[]> {
+export async function checkAllScreens(repo: string, config: Config): Promise<ScreenStatusReport[]> {
   // 追跡中のものと、まだ追跡していない新しい画面の両方。
   const listed = await git(
     repo,

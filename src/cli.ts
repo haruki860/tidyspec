@@ -3,17 +3,10 @@ import { loadConfig } from "./config.js";
 import { git } from "./git.js";
 import { checkCommit } from "./hook.js";
 import { runInit } from "./initCommand.js";
+import type { Io } from "./io.js";
 import { isLanguage } from "./language.js";
-import type { Prompter } from "./prompter.js";
 import { renderCheck, renderStatus, statusExitCode } from "./render.js";
 import { checkAllScreens } from "./status.js";
-
-export interface Io {
-  out(text: string): void;
-  err(text: string): void;
-  /** 端末で質問できるときだけ渡される */
-  prompt?: Prompter;
-}
 
 const USAGE = `Usage: tidyspec <command> [options]
 
