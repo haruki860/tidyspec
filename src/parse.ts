@@ -1,5 +1,4 @@
-export const SECTION_NAMES = ["仕様", "設計", "コード", "データ"] as const;
-export type SectionName = (typeof SECTION_NAMES)[number];
+import { DEFAULT_LANGUAGE, HEADINGS, SECTION_KEYS, sectionOf, type Language, type SectionKey } from "./language.js";
 
 /** 一行の長さの上限（コードポイント）。サンプルの最長行から仮に決めた値で、変わりうる。 */
 export const DEFAULT_MAX_LINE_LENGTH = 80;
@@ -47,6 +46,8 @@ export interface Problem {
 
 export interface ParseOptions {
   maxLineLength?: number;
+  /** 見出しの言語。既定は英語 */
+  language?: Language;
 }
 
 export interface ParseResult {
@@ -79,7 +80,7 @@ export function hasErrors(problems: Problem[]): boolean {
 
 type Cursor =
   | { kind: "before-sections" }
-  | { kind: "section"; name: SectionName }
+  | { kind: "section"; key: SectionKey }
   // 未知の見出しや二重の見出しの下。問題は見出しの時点で出しているので、中身は読み飛ばす
   | { kind: "skipped" };
 
@@ -89,10 +90,6 @@ const BULLET = /^[-*][ \t]+(.+?)[ \t]*$/;
 const NESTED_BULLET = /^[ \t]+[-*][ \t]+/;
 // 説明と、最後の「: 」または「：」の後ろのパス。パスに空白は含めない。
 const CODE_LINE = /^(.+?)[ \t]*(?::[ \t]+|：[ \t]*)(\S+)$/;
-
-function isSectionName(text: string): text is SectionName {
-  return SECTION_NAMES.some((name) => name === text);
-}
 
 function lengthOf(text: string): number {
   return [...text].length;
@@ -114,9 +111,10 @@ export function splitCodeLine(text: string): { description: string; path: string
  */
 export function parseScreen(source: string, options: ParseOptions = {}): ParseResult {
   const maxLineLength = options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
+  const language = options.language ?? DEFAULT_LANGUAGE;
   const screen: ParsedScreen = { title: null, spec: [], design: [], code: [], data: [] };
   const problems: Problem[] = [];
-  const seen = new Set<SectionName>();
+  const seen = new Set<SectionKey>();
   let cursor: Cursor = { kind: "before-sections" };
   let fence: string | null = null;
 
@@ -146,15 +144,16 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
         else problems.push({ kind: "duplicate-title", line, detail: text });
         cursor = { kind: "before-sections" };
       } else if (level === 2) {
-        if (!isSectionName(text)) {
+        const key = sectionOf(language, text);
+        if (key === undefined) {
           problems.push({ kind: "unknown-heading", line, detail: text });
           cursor = { kind: "skipped" };
-        } else if (seen.has(text)) {
+        } else if (seen.has(key)) {
           problems.push({ kind: "duplicate-heading", line, detail: text });
           cursor = { kind: "skipped" };
         } else {
-          seen.add(text);
-          cursor = { kind: "section", name: text };
+          seen.add(key);
+          cursor = { kind: "section", key };
         }
       } else {
         problems.push({ kind: "unexpected-heading", line, detail: text });
@@ -177,24 +176,24 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
       return;
     }
 
-    const section = cursor.name;
+    const section = cursor.key;
     // データは名前の並びなので、長さは見ない。
-    if (section !== "データ" && lengthOf(text) > maxLineLength) {
+    if (section !== "data" && lengthOf(text) > maxLineLength) {
       problems.push({ kind: "long-line", line, detail: String(lengthOf(text)) });
     }
 
     const item: Item = { text, line };
     switch (section) {
-      case "仕様":
+      case "spec":
         screen.spec.push(item);
         break;
-      case "設計":
+      case "design":
         screen.design.push(item);
         break;
-      case "データ":
+      case "data":
         screen.data.push({ text: text.replace(/^`(.+)`$/, "$1"), line });
         break;
-      case "コード": {
+      case "code": {
         const parts = splitCodeLine(text);
         if (parts) screen.code.push({ ...item, ...parts });
         else problems.push({ kind: "code-line-without-path", line, detail: text });
@@ -208,8 +207,8 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
   });
 
   if (screen.title === null) problems.push({ kind: "missing-title", line: null, detail: "" });
-  for (const name of SECTION_NAMES) {
-    if (!seen.has(name)) problems.push({ kind: "missing-heading", line: null, detail: name });
+  for (const key of SECTION_KEYS) {
+    if (!seen.has(key)) problems.push({ kind: "missing-heading", line: null, detail: HEADINGS[language][key] });
   }
   return { screen, problems };
 }

@@ -10,18 +10,18 @@ export interface Io {
   err(text: string): void;
 }
 
-const USAGE = `使い方: tidyspec <コマンド> [オプション]
+const USAGE = `Usage: tidyspec <command> [options]
 
-コマンド:
-  check    これからコミットする内容（ステージしたもの）を検査する。コミットフック用
-  status   全ての画面について、形の問題と、実装の方が新しいかを調べる
+Commands:
+  check    Inspect what is staged for commit (for a commit hook)
+  status   Check every screen for format problems and for code newer than the spec
 
-オプション:
-  --json     結果を JSON で出す
-  --strict   status で、古さを判定できない画面（浅い clone など）も失敗にする
-  -h, --help このメッセージ
+Options:
+  --json     Print the result as JSON
+  --strict   For status, also fail when staleness cannot be determined (e.g. a shallow clone)
+  -h, --help Show this message
 
-終了コード: 0 問題なし / 1 問題あり / 2 使い方や設定、git の失敗
+Exit codes: 0 no problems / 1 problems found / 2 usage, config or git failure
 `;
 
 /** コマンドを実行して終了コードを返す。出力は io に渡し、プロセスは終了させない。 */
@@ -57,7 +57,7 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
     const top = await git(cwd, ["rev-parse", "--show-toplevel"]);
     const root = top.stdout.trim();
     if (top.code !== 0 || root === "") {
-      io.err("tidyspec: git リポジトリの中で実行してください");
+      io.err("tidyspec: run this inside a git repository");
       return 2;
     }
     const loaded = await loadConfig(root);
@@ -68,14 +68,14 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
 
     if (command === "check") {
       const report = await checkCommit(root, loaded.config);
-      const text = json ? JSON.stringify(report, null, 2) : renderCheck(report);
+      const text = json ? JSON.stringify(report, null, 2) : renderCheck(report, loaded.config.language);
       if (report.ok) io.out(text);
       else io.err(text);
       return report.ok ? 0 : 1;
     }
 
     const reports = await checkAllScreens(root, loaded.config);
-    io.out(json ? JSON.stringify(reports, null, 2) : renderStatus(reports));
+    io.out(json ? JSON.stringify(reports, null, 2) : renderStatus(reports, loaded.config.language));
     return statusExitCode(reports, strict);
   } catch (error) {
     // git の失敗など。検査できなかったのを「問題なし」にはしない。

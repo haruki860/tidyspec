@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -36,6 +36,7 @@ function repoWithScreen() {
   made.push(repo);
   repo.write("docs/screens/login.md", screen());
   repo.write("src/a.ts", "1");
+  repo.write("tidyspec.json", '{"language":"ja"}');
   repo.commit("initial");
   return repo;
 }
@@ -88,7 +89,7 @@ describe("tidyspec check", () => {
     const repo = repoWithScreen();
     repo.write("specs/other.md", screen("- 判定: src/b.ts"));
     repo.write("src/b.ts", "1");
-    repo.write("tidyspec.json", '{"screens":["specs/*.md"],"implementation":[]}');
+    repo.write("tidyspec.json", '{"language":"ja","screens":["specs/*.md"],"implementation":[]}');
     repo.commit("config");
     repo.write("src/a.ts", "2");
     repo.git("add", "-A");
@@ -127,13 +128,13 @@ describe("使い方の誤りは 2", () => {
   ])("%s", async (_name, args) => {
     const result = await exec(args, repoWithScreen().dir);
     expect(result.code).toBe(2);
-    expect(result.err).toContain("使い方");
+    expect(result.err).toContain("Usage");
   });
 
   it("--help は 0 で、使い方を標準出力に出す", async () => {
     const result = await exec(["--help"], repoWithScreen().dir);
     expect(result.code).toBe(0);
-    expect(result.out).toContain("使い方");
+    expect(result.out).toContain("Usage");
   });
 
   it("git の外では 2", async () => {
@@ -141,7 +142,7 @@ describe("使い方の誤りは 2", () => {
     dirs.push(dir);
     const result = await exec(["check"], dir);
     expect(result.code).toBe(2);
-    expect(result.err).toContain("git リポジトリの中");
+    expect(result.err).toContain("inside a git repository");
   });
 
   it("検査の途中で git が失敗したら、問題なしにせず 2", async () => {
@@ -159,6 +160,24 @@ describe("使い方の誤りは 2", () => {
     writeFileSync(path.join(repo.dir, "tidyspec.json"), '{"screen":["x"]}');
     const result = await exec(["check"], repo.dir);
     expect(result.code).toBe(2);
-    expect(result.err).toContain("知らないキー");
+    expect(result.err).toContain("unknown keys");
+  });
+});
+
+describe("言語の設定", () => {
+  it("設定が無ければ英語の見出しと英語の出力で動く", async () => {
+    const repo = TestRepo.create();
+    made.push(repo);
+    repo.write("docs/screens/login.md", readFileSync(new URL("../examples/shop-en/login.md", import.meta.url), "utf8"));
+    repo.write("src/auth/lock.ts", "1");
+    repo.write("src/auth/login.ts", "1");
+    repo.write("src/pages/login.tsx", "1");
+    repo.commit("initial");
+    expect(await exec(["status"], repo.dir)).toEqual({ code: 0, out: "docs/screens/login.md: up to date", err: "" });
+    repo.write("src/auth/lock.ts", "2");
+    repo.git("add", "-A");
+    const result = await exec(["check"], repo.dir);
+    expect(result.code).toBe(1);
+    expect(result.err).toContain("src/auth/lock.ts changed, but no screen");
   });
 });
