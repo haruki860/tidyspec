@@ -113,115 +113,153 @@ export function splitCodeLine(text: string): { description: string; path: string
   return path === "" ? null : { description, path };
 }
 
+// 一行ずつ読み進めるときの状態。読み取りの関数はこれを書き換える。
+interface Reader {
+  readonly language: Language;
+  readonly maxLineLength: number;
+  readonly screen: ParsedScreen;
+  readonly problems: Problem[];
+  readonly seen: Set<SectionKey>;
+  cursor: Cursor;
+  /** コードブロックの中にいる間は、開いた記号。中身は読まない */
+  fence: string | null;
+}
+
+function report(reader: Reader, problem: Problem): void {
+  reader.problems.push(problem);
+}
+
+/** コードブロックの開始・終了の行なら状態を更新して true を返す。 */
+function readFence(reader: Reader, raw: string, line: number): boolean {
+  const marker = FENCE.exec(raw)?.[1];
+  if (marker === undefined) return false;
+  if (reader.fence === null) {
+    reader.fence = marker;
+    if (reader.cursor.kind === "section")
+      report(reader, { kind: "not-a-bullet", line, detail: raw.trim() });
+  } else if (reader.fence === marker) {
+    reader.fence = null;
+  }
+  return true;
+}
+
+function readTitle(reader: Reader, text: string, line: number): void {
+  if (reader.screen.title === null) reader.screen.title = text;
+  else report(reader, { kind: "duplicate-title", line, detail: text });
+  reader.cursor = { kind: "before-sections" };
+}
+
+function readSectionHeading(reader: Reader, text: string, line: number): void {
+  const key = sectionOf(reader.language, text);
+  if (key === undefined) {
+    report(reader, { kind: "unknown-heading", line, detail: text });
+    reader.cursor = { kind: "skipped" };
+  } else if (reader.seen.has(key)) {
+    report(reader, { kind: "duplicate-heading", line, detail: text });
+    reader.cursor = { kind: "skipped" };
+  } else {
+    reader.seen.add(key);
+    reader.cursor = { kind: "section", key };
+  }
+}
+
+/** 見出しの行なら読んで true を返す。 */
+function readHeading(reader: Reader, raw: string, line: number): boolean {
+  const match = HEADING.exec(raw);
+  if (!match) return false;
+  const level = match[1]?.length ?? 0;
+  const text = match[2] ?? "";
+  if (level === 1) readTitle(reader, text, line);
+  else if (level === 2) readSectionHeading(reader, text, line);
+  else report(reader, { kind: "unexpected-heading", line, detail: text });
+  return true;
+}
+
+function addItem(reader: Reader, section: SectionKey, item: Item): void {
+  const { screen } = reader;
+  const { text, line } = item;
+  switch (section) {
+    case "spec":
+      screen.spec.push({ text, line });
+      break;
+    case "design":
+      screen.design.push({ text, line });
+      break;
+    case "data":
+      screen.data.push({ text: text.replace(/^`(.+)`$/, "$1"), line });
+      break;
+    case "code": {
+      const parts = splitCodeLine(text);
+      if (parts) screen.code.push({ text, line, ...parts });
+      else report(reader, { kind: "code-line-without-path", line, detail: text });
+      break;
+    }
+    default: {
+      const unreachable: never = section;
+      throw new Error(`unhandled section: ${String(unreachable)}`);
+    }
+  }
+}
+
+function readBullet(reader: Reader, section: SectionKey, row: Item): void {
+  const { text: raw, line } = row;
+  const text = BULLET.exec(raw)?.[1];
+  if (text === undefined) {
+    report(reader, {
+      kind: NESTED_BULLET.test(raw) ? "nested-bullet" : "not-a-bullet",
+      line,
+      detail: raw.trim(),
+    });
+    return;
+  }
+  // データは名前の並びなので、長さは見ない。
+  if (section !== "data" && lengthOf(text) > reader.maxLineLength) {
+    report(reader, { kind: "long-line", line, detail: String(lengthOf(text)) });
+  }
+  addItem(reader, section, { text, line });
+}
+
+function readLine(reader: Reader, raw: string, line: number): void {
+  if (readFence(reader, raw, line) || reader.fence !== null) return;
+  if (readHeading(reader, raw, line)) return;
+  if (raw.trim() === "" || reader.cursor.kind === "skipped") return;
+  if (reader.cursor.kind === "before-sections") {
+    report(reader, { kind: "text-outside-section", line, detail: raw.trim() });
+    return;
+  }
+  readBullet(reader, reader.cursor.key, { text: raw, line });
+}
+
+/** 全体で一つだけの要素（題名と四つの見出し）が揃っているかを見る。 */
+function reportMissing(reader: Reader): void {
+  if (reader.screen.title === null) {
+    reader.problems.push({ kind: "missing-title", line: null, detail: "" });
+  }
+  for (const key of SECTION_KEYS) {
+    if (reader.seen.has(key)) continue;
+    const detail = HEADINGS[reader.language][key];
+    reader.problems.push({ kind: "missing-heading", line: null, detail });
+  }
+}
+
 /**
  * 画面の Markdown を読む。形が崩れていても、読めた分は screen に入れ、問題は problems に積む。
  * 文章の正しさは見ない。
  */
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export function parseScreen(source: string, options: ParseOptions = {}): ParseResult {
-  const maxLineLength = options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
-  const language = options.language ?? DEFAULT_LANGUAGE;
-  const screen: ParsedScreen = { title: null, spec: [], design: [], code: [], data: [] };
-  const problems: Problem[] = [];
-  const seen = new Set<SectionKey>();
-  let cursor: Cursor = { kind: "before-sections" };
-  let fence: string | null = null;
-
+  const reader: Reader = {
+    language: options.language ?? DEFAULT_LANGUAGE,
+    maxLineLength: options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH,
+    screen: { title: null, spec: [], design: [], code: [], data: [] },
+    problems: [],
+    seen: new Set(),
+    cursor: { kind: "before-sections" },
+    fence: null,
+  };
   const lines = source.replace(/^﻿/, "").split(/\r\n|\r|\n/);
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
-  // biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
   lines.forEach((raw, index) => {
-    const line = index + 1;
-
-    const fenceMatch = FENCE.exec(raw);
-    if (fenceMatch) {
-      const marker = fenceMatch[1] ?? "";
-      if (fence === null) {
-        fence = marker;
-        if (cursor.kind === "section")
-          problems.push({ kind: "not-a-bullet", line, detail: raw.trim() });
-      } else if (fence === marker) {
-        fence = null;
-      }
-      return;
-    }
-    if (fence !== null) return;
-
-    const heading = HEADING.exec(raw);
-    if (heading) {
-      const level = heading[1]?.length ?? 0;
-      const text = heading[2] ?? "";
-      if (level === 1) {
-        if (screen.title === null) screen.title = text;
-        else problems.push({ kind: "duplicate-title", line, detail: text });
-        cursor = { kind: "before-sections" };
-      } else if (level === 2) {
-        const key = sectionOf(language, text);
-        if (key === undefined) {
-          problems.push({ kind: "unknown-heading", line, detail: text });
-          cursor = { kind: "skipped" };
-        } else if (seen.has(key)) {
-          problems.push({ kind: "duplicate-heading", line, detail: text });
-          cursor = { kind: "skipped" };
-        } else {
-          seen.add(key);
-          cursor = { kind: "section", key };
-        }
-      } else {
-        problems.push({ kind: "unexpected-heading", line, detail: text });
-      }
-      return;
-    }
-
-    if (raw.trim() === "" || cursor.kind === "skipped") return;
-
-    if (cursor.kind === "before-sections") {
-      problems.push({ kind: "text-outside-section", line, detail: raw.trim() });
-      return;
-    }
-
-    const bullet = BULLET.exec(raw);
-    const text = bullet?.[1];
-    if (text === undefined) {
-      const kind = NESTED_BULLET.test(raw) ? "nested-bullet" : "not-a-bullet";
-      problems.push({ kind, line, detail: raw.trim() });
-      return;
-    }
-
-    const section = cursor.key;
-    // データは名前の並びなので、長さは見ない。
-    if (section !== "data" && lengthOf(text) > maxLineLength) {
-      problems.push({ kind: "long-line", line, detail: String(lengthOf(text)) });
-    }
-
-    const item: Item = { text, line };
-    switch (section) {
-      case "spec":
-        screen.spec.push(item);
-        break;
-      case "design":
-        screen.design.push(item);
-        break;
-      case "data":
-        screen.data.push({ text: text.replace(/^`(.+)`$/, "$1"), line });
-        break;
-      case "code": {
-        const parts = splitCodeLine(text);
-        if (parts) screen.code.push({ ...item, ...parts });
-        else problems.push({ kind: "code-line-without-path", line, detail: text });
-        break;
-      }
-      default: {
-        const unreachable: never = section;
-        throw new Error(`unhandled section: ${String(unreachable)}`);
-      }
-    }
+    readLine(reader, raw, index + 1);
   });
-
-  if (screen.title === null) problems.push({ kind: "missing-title", line: null, detail: "" });
-  for (const key of SECTION_KEYS) {
-    if (!seen.has(key))
-      problems.push({ kind: "missing-heading", line: null, detail: HEADINGS[language][key] });
-  }
-  return { screen, problems };
+  reportMissing(reader);
+  return { screen: reader.screen, problems: reader.problems };
 }

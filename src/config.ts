@@ -31,59 +31,89 @@ function isStringArray(value: unknown): value is string[] {
   );
 }
 
-/**
- * 設定の JSON を検証する。書かれていない項目は既定値で埋める。
- * 打ち間違いのキーは、黙って無視すると検査が効かないままになるので、エラーにする。
- */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
-export function parseConfig(text: string): ConfigResult {
+type Field<T> = { ok: true; value: T } | { ok: false; error: string };
+
+function invalid(error: string): { ok: false; error: string } {
+  return { ok: false, error };
+}
+
+// noPropertyAccessFromIndexSignature があるので、キーを分割代入で取り出す。
+function destructure(record: Record<string, unknown>) {
+  const { screens, implementation, maxLineLength, language } = record;
+  return { screens, implementation, maxLineLength, language };
+}
+
+function jsonObject(text: string): Field<Record<string, unknown>> {
   let value: unknown;
   try {
     value = JSON.parse(text);
   } catch {
-    return { ok: false, error: `${CONFIG_FILE} is not valid JSON` };
+    return invalid(`${CONFIG_FILE} is not valid JSON`);
   }
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { ok: false, error: `${CONFIG_FILE} must be a JSON object` };
+    return invalid(`${CONFIG_FILE} must be a JSON object`);
   }
-  const record: Record<string, unknown> = Object.fromEntries(Object.entries(value));
+  return { ok: true, value: Object.fromEntries(Object.entries(value)) };
+}
+
+// 以降の項目の読み取りは、書かれていなければ既定値を返す。
+
+function screensField(value: unknown): Field<string[]> {
+  if (value === undefined) return { ok: true, value: DEFAULT_CONFIG.screens };
+  if (!isStringArray(value) || value.length === 0) {
+    return invalid("screens must be a non-empty array of strings");
+  }
+  return { ok: true, value };
+}
+
+function implementationField(value: unknown): Field<string[]> {
+  if (value === undefined) return { ok: true, value: DEFAULT_CONFIG.implementation };
+  if (!isStringArray(value)) return invalid("implementation must be an array of strings");
+  return { ok: true, value };
+}
+
+function maxLineLengthField(value: unknown): Field<number | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    return invalid("maxLineLength must be an integer of 1 or more");
+  }
+  return { ok: true, value };
+}
+
+function languageField(value: unknown): Field<Language> {
+  if (value === undefined) return { ok: true, value: DEFAULT_CONFIG.language };
+  if (!isLanguage(value)) return invalid(`language must be one of: ${LANGUAGES.join(", ")}`);
+  return { ok: true, value };
+}
+
+/**
+ * 設定の JSON を検証する。書かれていない項目は既定値で埋める。
+ * 打ち間違いのキーは、黙って無視すると検査が効かないままになるので、エラーにする。
+ */
+export function parseConfig(text: string): ConfigResult {
+  const parsed = jsonObject(text);
+  if (!parsed.ok) return parsed;
+  const record = parsed.value;
+  const fields = destructure(record);
 
   const unknown = Object.keys(record).filter((key) => !KNOWN_KEYS.includes(key));
-  if (unknown.length > 0) {
-    return { ok: false, error: `${CONFIG_FILE} has unknown keys: ${unknown.join(", ")}` };
-  }
+  if (unknown.length > 0) return invalid(`${CONFIG_FILE} has unknown keys: ${unknown.join(", ")}`);
 
-  const config: Config = { ...DEFAULT_CONFIG };
+  const screens = screensField(fields.screens);
+  if (!screens.ok) return screens;
+  const implementation = implementationField(fields.implementation);
+  if (!implementation.ok) return implementation;
+  const maxLineLength = maxLineLengthField(fields.maxLineLength);
+  if (!maxLineLength.ok) return maxLineLength;
+  const language = languageField(fields.language);
+  if (!language.ok) return language;
 
-  const { screens, implementation, maxLineLength, language } = record;
-  if (screens !== undefined) {
-    if (!isStringArray(screens) || screens.length === 0) {
-      return { ok: false, error: "screens must be a non-empty array of strings" };
-    }
-    config.screens = screens;
-  }
-  if (implementation !== undefined) {
-    if (!isStringArray(implementation)) {
-      return { ok: false, error: "implementation must be an array of strings" };
-    }
-    config.implementation = implementation;
-  }
-  if (maxLineLength !== undefined) {
-    if (
-      typeof maxLineLength !== "number" ||
-      !Number.isInteger(maxLineLength) ||
-      maxLineLength < 1
-    ) {
-      return { ok: false, error: "maxLineLength must be an integer of 1 or more" };
-    }
-    config.maxLineLength = maxLineLength;
-  }
-  if (language !== undefined) {
-    if (!isLanguage(language)) {
-      return { ok: false, error: `language must be one of: ${LANGUAGES.join(", ")}` };
-    }
-    config.language = language;
-  }
+  const config: Config = {
+    screens: screens.value,
+    implementation: implementation.value,
+    language: language.value,
+    ...(maxLineLength.value === undefined ? {} : { maxLineLength: maxLineLength.value }),
+  };
   return { ok: true, config };
 }
 

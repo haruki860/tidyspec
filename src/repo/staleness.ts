@@ -31,17 +31,14 @@ export interface CheckOptions {
   code: string[];
 }
 
-/** 画面の「コード」が指す各ファイルが、画面の Markdown より新しいかを git の履歴から決める。画面ファイルが無いのは呼び出し側のバグなので投げる。 */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
-export async function checkStaleness(options: CheckOptions): Promise<ScreenReport> {
-  const { repo, screen } = options;
-  if (!(await exists(repo, screen))) throw new Error(`screen file not found: ${screen}`);
+interface Present {
+  file: string;
+  found: boolean;
+}
 
-  const present = await Promise.all(
-    options.code.map(async (file) => ({ file, found: await exists(repo, file) })),
-  );
+/** git の履歴で比べられない場合（git の外、浅い clone）。比べられるなら undefined。 */
+async function unverifiable(repo: string, present: Present[]): Promise<ScreenReport | undefined> {
   const anyMissing = present.some((entry) => !entry.found);
-
   const inside = await git(repo, ["rev-parse", "--is-inside-work-tree"]);
   if (inside.code !== 0) return unchecked(present, anyMissing ? "missing" : "no-git");
 
@@ -49,38 +46,54 @@ export async function checkStaleness(options: CheckOptions): Promise<ScreenRepor
   const shallow = await git(repo, ["rev-parse", "--is-shallow-repository"]);
   if (shallow.stdout.trim() === "true")
     return unchecked(present, anyMissing ? "missing" : "unknown");
+  return undefined;
+}
 
-  // 画面の Markdown に未コミットの変更（新規含む）があるときは、今まさに書かれている。
-  // 全ての実装より新しいものとして扱う。
-  const specDirty = (await porcelain(repo, screen)) !== "";
-  const specCommit = await lastCommit(repo, screen);
-  const ancestry = new Map<string, boolean>();
+/** 一つの画面について、ファイルを比べるのに共通して要るもの。 */
+interface Comparison {
+  repo: string;
+  /** 画面の Markdown に未コミットの変更（新規含む）がある。今まさに書かれているので、全ての実装より新しいものとして扱う */
+  specDirty: boolean;
+  specCommit: string | undefined;
+  isAncestor: (ancestor: string, descendant: string) => Promise<boolean>;
+}
 
+async function compareWithSpec(comparison: Comparison, file: string): Promise<FileState> {
+  const { repo, specDirty, specCommit } = comparison;
+  const status = await porcelain(repo, file);
+  if (status.startsWith("??")) return "untracked";
+  if (specDirty) return "aligned";
+  if (status !== "") return "working-changes";
+
+  const fileCommit = await lastCommit(repo, file);
+  if (fileCommit === undefined) return "untracked";
+  if (specCommit === undefined) return "unchecked";
+  const aligned =
+    fileCommit === specCommit || (await comparison.isAncestor(fileCommit, specCommit));
+  return aligned ? "aligned" : "stale";
+}
+
+/** 画面の「コード」が指す各ファイルが、画面の Markdown より新しいかを git の履歴から決める。画面ファイルが無いのは呼び出し側のバグなので投げる。 */
+export async function checkStaleness(options: CheckOptions): Promise<ScreenReport> {
+  const { repo, screen } = options;
+  if (!(await exists(repo, screen))) throw new Error(`screen file not found: ${screen}`);
+
+  const present = await Promise.all(
+    options.code.map(async (file) => ({ file, found: await exists(repo, file) })),
+  );
+  const early = await unverifiable(repo, present);
+  if (early) return early;
+
+  const comparison: Comparison = {
+    repo,
+    specDirty: (await porcelain(repo, screen)) !== "",
+    specCommit: await lastCommit(repo, screen),
+    isAncestor: ancestryChecker(repo),
+  };
   const files: FileReport[] = [];
   for (const { file, found } of present) {
-    if (!found) {
-      files.push({ path: file, state: "missing" });
-      continue;
-    }
-    const status = await porcelain(repo, file);
-    if (status.startsWith("??")) {
-      files.push({ path: file, state: "untracked" });
-    } else if (specDirty) {
-      files.push({ path: file, state: "aligned" });
-    } else if (status !== "") {
-      files.push({ path: file, state: "working-changes" });
-    } else {
-      const fileCommit = await lastCommit(repo, file);
-      if (fileCommit === undefined) {
-        files.push({ path: file, state: "untracked" });
-      } else if (specCommit === undefined) {
-        files.push({ path: file, state: "unchecked" });
-      } else {
-        const aligned =
-          fileCommit === specCommit || (await isAncestor(repo, fileCommit, specCommit, ancestry));
-        files.push({ path: file, state: aligned ? "aligned" : "stale" });
-      }
-    }
+    const state = found ? await compareWithSpec(comparison, file) : "missing";
+    files.push({ path: file, state });
   }
   return { status: summarize(files), files };
 }
@@ -130,20 +143,18 @@ async function lastCommit(repo: string, file: string): Promise<string | undefine
   return result.code === 0 && hash !== "" ? hash : undefined;
 }
 
-// biome-ignore lint/complexity/useMaxParams: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
-async function isAncestor(
-  repo: string,
-  ancestor: string,
-  descendant: string,
-  cache: Map<string, boolean>,
-): Promise<boolean> {
-  const key = `${ancestor}:${descendant}`;
-  const cached = cache.get(key);
-  if (cached !== undefined) return cached;
-  const result = await git(repo, ["merge-base", "--is-ancestor", ancestor, descendant]);
-  // 終了コード 1 は「祖先ではない」。それ以外は git の失敗。
-  if (result.code !== 0 && result.code !== 1)
-    throw new Error(`git merge-base failed (exit ${result.code})`);
-  cache.set(key, result.code === 0);
-  return result.code === 0;
+/** 祖先かどうかを git に聞く関数。同じ組を何度も聞かないよう、答えを覚えておく。 */
+function ancestryChecker(repo: string): (ancestor: string, descendant: string) => Promise<boolean> {
+  const cache = new Map<string, boolean>();
+  return async (ancestor, descendant) => {
+    const key = `${ancestor}:${descendant}`;
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+    const result = await git(repo, ["merge-base", "--is-ancestor", ancestor, descendant]);
+    // 終了コード 1 は「祖先ではない」。それ以外は git の失敗。
+    if (result.code !== 0 && result.code !== 1)
+      throw new Error(`git merge-base failed (exit ${result.code})`);
+    cache.set(key, result.code === 0);
+    return result.code === 0;
+  };
 }

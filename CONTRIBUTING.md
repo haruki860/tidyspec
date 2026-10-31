@@ -30,7 +30,7 @@ Node.js 22 or later.
 - **Untrusted text is never trusted.** Paths from a screen file are checked to stay inside the repository in one place, and anything from a file is stripped of control characters before it is printed.
 - **Comments say why**, not what. Names say what.
 - **Dependencies point one way**, as in [docs/decisions/001-module-layout.md](docs/decisions/001-module-layout.md). A test checks this.
-- A suppression comment needs a real reason. The ones marked `TODO(decision 001)` are debt on functions that will be split; do not add new ones.
+- A suppression comment needs a real reason. The only ones today are two control-character regexes, where matching control characters is the point.
 
 ## Tests
 
