@@ -52,31 +52,49 @@ export function renderCheck(report: HookReport, language: Language = DEFAULT_LAN
   return lines.join("\n");
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+function problemMarks(m: Messages, problems: Problem[]): string[] {
+  return problems.map((problem) => {
+    const label = severityOf(problem) === "error" ? m.errorLabel : m.warningLabel;
+    const where = problem.line === null ? "" : m.atLine(problem.line);
+    return `  ${label} ${where}${describeProblem(m, problem)}`;
+  });
+}
+
+function fileMarks(m: Messages, staleness: ScreenStatusReport["staleness"]): string[] {
+  return staleness.files.flatMap((file) => {
+    const text = m.fileState[file.state];
+    return text === null ? [] : [`  ${text}: ${sanitize(file.path)}`];
+  });
+}
+
+// 比べられなかった理由。何も出さないと「揃っている」と読まれてしまう。
+function undeterminedMarks(
+  m: Messages,
+  status: ScreenStatusReport["staleness"]["status"],
+): string[] {
+  if (status === "unknown") return [`  ${m.undeterminedShallow}`];
+  if (status === "no-git") return [`  ${m.undeterminedNoGit}`];
+  return [];
+}
+
+function renderScreen(m: Messages, report: ScreenStatusReport): string[] {
+  const { screen, problems, staleness } = report;
+  const marks = [
+    ...problemMarks(m, problems),
+    ...fileMarks(m, staleness),
+    ...undeterminedMarks(m, staleness.status),
+  ];
+  const head = `${sanitize(screen)}: ${marks.length === 0 ? m.upToDate : ""}`.trimEnd();
+  return [head, ...marks];
+}
+
 export function renderStatus(
   reports: ScreenStatusReport[],
   language: Language = DEFAULT_LANGUAGE,
 ): string {
   const m = MESSAGES[language];
-  const lines: string[] = [];
-  for (const { screen, problems, staleness } of reports) {
-    const marks: string[] = [];
-    for (const problem of problems) {
-      const label = severityOf(problem) === "error" ? m.errorLabel : m.warningLabel;
-      const where = problem.line === null ? "" : m.atLine(problem.line);
-      marks.push(`  ${label} ${where}${describeProblem(m, problem)}`);
-    }
-    for (const file of staleness.files) {
-      const text = m.fileState[file.state];
-      if (text !== null) marks.push(`  ${text}: ${sanitize(file.path)}`);
-    }
-    if (staleness.status === "unknown") marks.push(`  ${m.undeterminedShallow}`);
-    if (staleness.status === "no-git") marks.push(`  ${m.undeterminedNoGit}`);
-    lines.push(`${sanitize(screen)}: ${marks.length === 0 ? m.upToDate : ""}`.trimEnd());
-    lines.push(...marks);
-  }
-  if (reports.length === 0) lines.push(m.noScreens);
-  return lines.join("\n");
+  if (reports.length === 0) return m.noScreens;
+  return reports.flatMap((report) => renderScreen(m, report)).join("\n");
 }
 
 /** status の終了コード。判定できない（浅い clone など）は、strict のときだけ失敗にする。 */
