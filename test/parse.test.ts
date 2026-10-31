@@ -1,9 +1,16 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MAX_LINE_LENGTH, hasErrors, parseScreen as parseWith, splitCodeLine, type ParseOptions } from "../src/parse.js";
+import {
+  DEFAULT_MAX_LINE_LENGTH,
+  hasErrors,
+  type ParseOptions,
+  parseScreen as parseWith,
+  splitCodeLine,
+} from "../src/parse.js";
 
 // このファイルのフィクスチャは日本語の見出し
-const parseScreen = (source: string, options: ParseOptions = {}) => parseWith(source, { language: "ja", ...options });
+const parseScreen = (source: string, options: ParseOptions = {}) =>
+  parseWith(source, { language: "ja", ...options });
 
 const valid = `# ログイン
 
@@ -35,10 +42,18 @@ describe("parseScreen", () => {
     const { screen, problems } = parseScreen(valid);
     expect(problems).toEqual([]);
     expect(screen.title).toBe("ログイン");
-    expect(screen.spec.map((i) => i.text)).toEqual(["メールで入れる", "連続して失敗するとロックする"]);
+    expect(screen.spec.map((i) => i.text)).toEqual([
+      "メールで入れる",
+      "連続して失敗するとロックする",
+    ]);
     expect(screen.design).toHaveLength(1);
     expect(screen.code).toEqual([
-      { text: "連続失敗の判定: src/auth/lock.ts", line: 14, description: "連続失敗の判定", path: "src/auth/lock.ts" },
+      {
+        text: "連続失敗の判定: src/auth/lock.ts",
+        line: 14,
+        description: "連続失敗の判定",
+        path: "src/auth/lock.ts",
+      },
     ]);
     expect(screen.data.map((i) => i.text)).toEqual(["users", "sessions"]);
   });
@@ -92,7 +107,10 @@ describe("parseScreen", () => {
     });
 
     it("コードブロックの中の # は見出しにしない", () => {
-      const source = valid.replace("- メールで入れる", "```\n# 見出しに見える\n## 仕様\n```\n- メールで入れる");
+      const source = valid.replace(
+        "- メールで入れる",
+        "```\n# 見出しに見える\n## 仕様\n```\n- メールで入れる",
+      );
       const { screen, problems } = parseScreen(source);
       expect(problems.map((p) => p.kind)).toEqual(["not-a-bullet"]);
       expect(screen.spec.map((i) => i.text)).toContain("メールで入れる");
@@ -118,14 +136,18 @@ describe("parseScreen", () => {
 
     it("設計とコードの行も見る。データは見ない", () => {
       const long = "あ".repeat(DEFAULT_MAX_LINE_LENGTH + 1);
-      expect(kinds(valid.replace("- ロックは回数ではなく、連続失敗でかける", `- ${long}`))).toEqual(["long-line"]);
+      expect(kinds(valid.replace("- ロックは回数ではなく、連続失敗でかける", `- ${long}`))).toEqual(
+        ["long-line"],
+      );
       expect(kinds(valid.replace("- users", `- ${"u".repeat(200)}`))).toEqual([]);
     });
   });
 
   describe("コードの行", () => {
     it("区切りの後に空白なしの語が無いと error で、code に入れない", () => {
-      const { screen, problems } = parseScreen(valid.replace("連続失敗の判定: src/auth/lock.ts", "連続失敗の判定はここ"));
+      const { screen, problems } = parseScreen(
+        valid.replace("連続失敗の判定: src/auth/lock.ts", "連続失敗の判定はここ"),
+      );
       expect(problems.map((p) => p.kind)).toEqual(["code-line-without-path"]);
       expect(screen.code).toEqual([]);
     });
@@ -146,29 +168,40 @@ describe("parseScreen", () => {
       expect(splitCodeLine(text)).toEqual({ description, path });
     });
 
-    it.each(["src/a.ts", "判定:", "判定: 二語 以上", ": src/a.ts"])("%s はパスが取れない", (text) => {
-      expect(splitCodeLine(text)).toBeNull();
-    });
+    it.each(["src/a.ts", "判定:", "判定: 二語 以上", ": src/a.ts"])(
+      "%s はパスが取れない",
+      (text) => {
+        expect(splitCodeLine(text)).toBeNull();
+      },
+    );
   });
 
   describe("形の崩れ", () => {
     it("箇条書きでない文章は warning", () => {
-      expect(kinds(valid.replace("- メールで入れる", "メールで入れる。"))).toEqual(["not-a-bullet"]);
+      expect(kinds(valid.replace("- メールで入れる", "メールで入れる。"))).toEqual([
+        "not-a-bullet",
+      ]);
     });
 
     it("入れ子の箇条書きは warning で、読み取らない", () => {
-      const { screen, problems } = parseScreen(valid.replace("- メールで入れる", "- メールで入れる\n  - 入れ子"));
+      const { screen, problems } = parseScreen(
+        valid.replace("- メールで入れる", "- メールで入れる\n  - 入れ子"),
+      );
       expect(problems.map((p) => p.kind)).toEqual(["nested-bullet"]);
       expect(screen.spec).toHaveLength(2);
     });
 
     it("見出しの前の文章（古い形式のコミット行など）は warning", () => {
-      const { problems } = parseScreen(valid.replace("# ログイン\n", "# ログイン\n\n仕様を揃えたコミット: abc1234\n"));
+      const { problems } = parseScreen(
+        valid.replace("# ログイン\n", "# ログイン\n\n仕様を揃えたコミット: abc1234\n"),
+      );
       expect(problems.map((p) => p.kind)).toEqual(["text-outside-section"]);
     });
 
     it("見出しの下の三段目以降の見出しは warning", () => {
-      expect(kinds(valid.replace("- メールで入れる", "### 細目\n- メールで入れる"))).toEqual(["unexpected-heading"]);
+      expect(kinds(valid.replace("- メールで入れる", "### 細目\n- メールで入れる"))).toEqual([
+        "unexpected-heading",
+      ]);
     });
 
     it("空の入力は error だけで、例外にしない", () => {
@@ -193,24 +226,42 @@ describe("language", () => {
     expect(problems).toEqual([]);
     expect(screen.title).toBe("Login");
     expect(screen.spec).toHaveLength(3);
-    expect(screen.code.map((entry) => entry.path)).toEqual(["src/auth/lock.ts", "src/auth/login.ts", "src/pages/login.tsx"]);
+    expect(screen.code.map((entry) => entry.path)).toEqual([
+      "src/auth/lock.ts",
+      "src/auth/login.ts",
+      "src/pages/login.tsx",
+    ]);
     expect(screen.data.map((item) => item.text)).toEqual(["users", "sessions"]);
   });
 
   it("英語の設定で、日本語の見出しは決まった見出しとして読まれない", () => {
     const { problems } = parseWith(valid);
     expect(problems.filter((p) => p.kind === "unknown-heading")).toHaveLength(4);
-    expect(problems.filter((p) => p.kind === "missing-heading").map((p) => p.detail)).toEqual(["Spec", "Design", "Code", "Data"]);
+    expect(problems.filter((p) => p.kind === "missing-heading").map((p) => p.detail)).toEqual([
+      "Spec",
+      "Design",
+      "Code",
+      "Data",
+    ]);
   });
 
   it("日本語の設定で、英語の見出しは読まれず、無い見出しは日本語名で言う", () => {
     const { problems } = parseWith(english, { language: "ja" });
-    expect(problems.filter((p) => p.kind === "missing-heading").map((p) => p.detail)).toEqual(["仕様", "設計", "コード", "データ"]);
+    expect(problems.filter((p) => p.kind === "missing-heading").map((p) => p.detail)).toEqual([
+      "仕様",
+      "設計",
+      "コード",
+      "データ",
+    ]);
   });
 
   it("英語でも、データの行は長さを見ず、他の行は見る", () => {
     const long = "a".repeat(DEFAULT_MAX_LINE_LENGTH + 1);
     expect(parseWith(english.replace("- users", `- ${long}`)).problems).toEqual([]);
-    expect(parseWith(english.replace("The lock is per account, never per IP address", long)).problems.map((p) => p.kind)).toEqual(["long-line"]);
+    expect(
+      parseWith(
+        english.replace("The lock is per account, never per IP address", long),
+      ).problems.map((p) => p.kind),
+    ).toEqual(["long-line"]);
   });
 });

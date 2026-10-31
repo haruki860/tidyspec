@@ -65,7 +65,11 @@ describe("checkCommit", () => {
     const report = await checkCommit(repo.dir);
     expect(report.ok).toBe(false);
     expect(report.violations).toEqual([
-      { kind: "screen-problem", screen: LOGIN, problem: { kind: "missing-heading", line: null, detail: "設計" } },
+      {
+        kind: "screen-problem",
+        screen: LOGIN,
+        problem: { kind: "missing-heading", line: null, detail: "設計" },
+      },
     ]);
   });
 
@@ -81,16 +85,23 @@ describe("checkCommit", () => {
     repo.write(LOGIN, screen("- 判定はここ"));
     stage(repo);
     const report = await checkCommit(repo.dir);
-    expect(report.violations).toMatchObject([{ kind: "screen-problem", problem: { kind: "code-line-without-path" } }]);
+    expect(report.violations).toMatchObject([
+      { kind: "screen-problem", problem: { kind: "code-line-without-path" } },
+    ]);
   });
 
-  it.each(["src/nothing.ts", "../outside.ts", "/etc/hosts", "src"])("H3: コードの行が指す %s が無いと止める", async (target) => {
-    const repo = baseRepo();
-    repo.write(LOGIN, screen(`- 判定: ${target}`));
-    stage(repo);
-    const report = await checkCommit(repo.dir);
-    expect(report.violations).toEqual([{ kind: "code-file-missing", screen: LOGIN, line: 13, path: target }]);
-  });
+  it.each(["src/nothing.ts", "../outside.ts", "/etc/hosts", "src"])(
+    "H3: コードの行が指す %s が無いと止める",
+    async (target) => {
+      const repo = baseRepo();
+      repo.write(LOGIN, screen(`- 判定: ${target}`));
+      stage(repo);
+      const report = await checkCommit(repo.dir);
+      expect(report.violations).toEqual([
+        { kind: "code-file-missing", screen: LOGIN, line: 13, path: target },
+      ]);
+    },
+  );
 
   it("H4: 載っている実装だけを変えると止め、載せている画面を全部言う", async () => {
     const repo = baseRepo();
@@ -184,7 +195,9 @@ describe("checkCommit", () => {
     stage(repo);
     const report = await checkCommit(repo.dir);
     expect(report.ok).toBe(true);
-    expect(report.warnings).toMatchObject([{ screen: LOGIN, problem: { kind: "unknown-heading" } }]);
+    expect(report.warnings).toMatchObject([
+      { screen: LOGIN, problem: { kind: "unknown-heading" } },
+    ]);
   });
 
   it("日本語のファイル名の画面も読める", async () => {
@@ -211,13 +224,21 @@ describe("checkCommit", () => {
     repo.commit("initial");
     repo.write("src/auth/lock.ts", "2");
     stage(repo);
-    const report = await checkCommit(repo.dir, { ...JA, screens: ["specs/*.md"], implementation: [] });
-    expect(report.violations).toEqual([{ kind: "spec-not-updated", file: "src/auth/lock.ts", screens: ["specs/login.md"] }]);
+    const report = await checkCommit(repo.dir, {
+      ...JA,
+      screens: ["specs/*.md"],
+      implementation: [],
+    });
+    expect(report.violations).toEqual([
+      { kind: "spec-not-updated", file: "src/auth/lock.ts", screens: ["specs/login.md"] },
+    ]);
   });
 
   it("git が失敗したら、通さずに例外にする", async () => {
     const repo = baseRepo();
-    await expect(checkCommit(repo.dir, { ...JA, screens: ["../outside/*.md"], implementation: [] })).rejects.toThrow("git ls-files failed");
+    await expect(
+      checkCommit(repo.dir, { ...JA, screens: ["../outside/*.md"], implementation: [] }),
+    ).rejects.toThrow("git ls-files failed");
     await expect(checkCommit(`${repo.dir}/not-a-repo`)).rejects.toThrow("failed");
   });
 });

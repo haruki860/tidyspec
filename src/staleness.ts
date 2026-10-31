@@ -38,6 +38,7 @@ export interface CheckOptions {
 }
 
 /** 画面の「コード」が指す各ファイルが、画面の Markdown より新しいかを git の履歴から決める。画面ファイルが無いのは呼び出し側のバグなので投げる。 */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export async function checkStaleness(options: CheckOptions): Promise<ScreenReport> {
   const { repo, screen } = options;
   if (!(await exists(repo, screen))) throw new Error(`screen file not found: ${screen}`);
@@ -52,7 +53,8 @@ export async function checkStaleness(options: CheckOptions): Promise<ScreenRepor
 
   // 浅い clone は「最後に変えたコミット」が境界のコミットになり、前後関係が信用できない。
   const shallow = await git(repo, ["rev-parse", "--is-shallow-repository"]);
-  if (shallow.stdout.trim() === "true") return unchecked(present, anyMissing ? "missing" : "unknown");
+  if (shallow.stdout.trim() === "true")
+    return unchecked(present, anyMissing ? "missing" : "unknown");
 
   // 画面の Markdown に未コミットの変更（新規含む）があるときは、今まさに書かれている。
   // 全ての実装より新しいものとして扱う。
@@ -134,6 +136,7 @@ async function lastCommit(repo: string, file: string): Promise<string | undefine
   return result.code === 0 && hash !== "" ? hash : undefined;
 }
 
+// biome-ignore lint/complexity/useMaxParams: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 async function isAncestor(
   repo: string,
   ancestor: string,
@@ -145,7 +148,8 @@ async function isAncestor(
   if (cached !== undefined) return cached;
   const result = await git(repo, ["merge-base", "--is-ancestor", ancestor, descendant]);
   // 終了コード 1 は「祖先ではない」。それ以外は git の失敗。
-  if (result.code !== 0 && result.code !== 1) throw new Error(`git merge-base failed (exit ${result.code})`);
+  if (result.code !== 0 && result.code !== 1)
+    throw new Error(`git merge-base failed (exit ${result.code})`);
   cache.set(key, result.code === 0);
   return result.code === 0;
 }

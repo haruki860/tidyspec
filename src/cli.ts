@@ -2,8 +2,8 @@ import { parseArgs } from "node:util";
 import { loadConfig } from "./config.js";
 import { git } from "./git.js";
 import { checkCommit } from "./hook.js";
-import { isLanguage } from "./language.js";
 import { runInit } from "./initCommand.js";
+import { isLanguage } from "./language.js";
 import type { Prompter } from "./prompter.js";
 import { renderCheck, renderStatus, statusExitCode } from "./render.js";
 import { checkAllScreens } from "./status.js";
@@ -39,28 +39,44 @@ Other options:
 Exit codes: 0 no problems / 1 problems found / 2 usage, config or git failure
 `;
 
-/** コマンドを実行して終了コードを返す。出力は io に渡し、プロセスは終了させない。 */
-export async function run(argv: string[], io: Io, cwd: string): Promise<number> {
-  let parsed;
+const OPTIONS = {
+  json: { type: "boolean" },
+  strict: { type: "boolean" },
+  help: { type: "boolean", short: "h" },
+  yes: { type: "boolean" },
+  lang: { type: "string" },
+  "screens-dir": { type: "string" },
+  "no-hook": { type: "boolean" },
+  "no-instructions": { type: "boolean" },
+} as const;
+
+function readArguments(argv: string[]) {
+  return parseArgs({ args: argv, allowPositionals: true, options: OPTIONS });
+}
+
+type ReadResult =
+  | { ok: true; arguments: ReturnType<typeof readArguments> }
+  | { ok: false; error: string };
+
+// parseArgs は知らないオプションなどで例外を投げる。使い方の誤りは想定内の失敗なので、値として返す。
+function tryReadArguments(argv: string[]): ReadResult {
   try {
-    parsed = parseArgs({
-      args: argv,
-      allowPositionals: true,
-      options: {
-        json: { type: "boolean" },
-        strict: { type: "boolean" },
-        help: { type: "boolean", short: "h" },
-        yes: { type: "boolean" },
-        lang: { type: "string" },
-        "screens-dir": { type: "string" },
-        "no-hook": { type: "boolean" },
-        "no-instructions": { type: "boolean" },
-      },
-    });
+    return { ok: true, arguments: readArguments(argv) };
   } catch (error) {
-    io.err(`tidyspec: ${error instanceof Error ? error.message : String(error)}\n\n${USAGE}`);
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** コマンドを実行して終了コードを返す。出力は io に渡し、プロセスは終了させない。 */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+export async function run(argv: string[], io: Io, cwd: string): Promise<number> {
+  const read = tryReadArguments(argv);
+  if (!read.ok) {
+    io.err(`tidyspec: ${read.error}\n\n${USAGE}`);
     return 2;
   }
+  const parsed = read.arguments;
 
   const { json = false, strict = false, help = false } = parsed.values;
   const [command, ...rest] = parsed.positionals;
@@ -90,6 +106,7 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
         root,
         {
           yes: parsed.values.yes ?? false,
+          // biome-ignore lint/style/noNestedTernary: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
           language: lang === undefined ? undefined : isLanguage(lang) ? lang : undefined,
           screensDir: parsed.values["screens-dir"],
           noHook: parsed.values["no-hook"] ?? false,
@@ -106,7 +123,9 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
 
     if (command === "check") {
       const report = await checkCommit(root, loaded.config);
-      const text = json ? JSON.stringify(report, null, 2) : renderCheck(report, loaded.config.language);
+      const text = json
+        ? JSON.stringify(report, null, 2)
+        : renderCheck(report, loaded.config.language);
       if (report.ok) io.out(text);
       else io.err(text);
       return report.ok ? 0 : 1;

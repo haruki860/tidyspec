@@ -7,8 +7,12 @@ const BASE_TIME = Date.UTC(2026, 0, 1) / 1000;
 
 // 一時的な git リポジトリ。履歴を作って、古さ判定の期待値を確かめる。
 export class TestRepo {
+  readonly dir: string;
   private tick = 0;
-  private constructor(readonly dir: string) {}
+
+  private constructor(dir: string) {
+    this.dir = dir;
+  }
 
   static create(): TestRepo {
     const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "tidyspec-")));

@@ -115,7 +115,9 @@ describe("tidyspec status", () => {
 
   it("--json は画面ごとの配列", async () => {
     const result = await exec(["status", "--json"], repoWithScreen().dir);
-    expect(JSON.parse(result.out)).toMatchObject([{ screen: "docs/screens/login.md", staleness: { status: "aligned" } }]);
+    expect(JSON.parse(result.out)).toMatchObject([
+      { screen: "docs/screens/login.md", staleness: { status: "aligned" } },
+    ]);
   });
 });
 
@@ -168,12 +170,19 @@ describe("言語の設定", () => {
   it("設定が無ければ英語の見出しと英語の出力で動く", async () => {
     const repo = TestRepo.create();
     made.push(repo);
-    repo.write("docs/screens/login.md", readFileSync(new URL("../examples/shop-en/login.md", import.meta.url), "utf8"));
+    repo.write(
+      "docs/screens/login.md",
+      readFileSync(new URL("../examples/shop-en/login.md", import.meta.url), "utf8"),
+    );
     repo.write("src/auth/lock.ts", "1");
     repo.write("src/auth/login.ts", "1");
     repo.write("src/pages/login.tsx", "1");
     repo.commit("initial");
-    expect(await exec(["status"], repo.dir)).toEqual({ code: 0, out: "docs/screens/login.md: up to date", err: "" });
+    expect(await exec(["status"], repo.dir)).toEqual({
+      code: 0,
+      out: "docs/screens/login.md: up to date",
+      err: "",
+    });
     repo.write("src/auth/lock.ts", "2");
     repo.git("add", "-A");
     const result = await exec(["check"], repo.dir);

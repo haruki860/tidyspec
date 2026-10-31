@@ -10,6 +10,7 @@ import type { ScreenStatusReport } from "./status.js";
  * 出力に混ぜる文字列は、必ずこれを通す。
  */
 export function sanitize(text: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point of this function
   return text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, "?");
 }
 
@@ -41,7 +42,8 @@ function describeViolation(m: Messages, violation: Violation): string {
 export function renderCheck(report: HookReport, language: Language = DEFAULT_LANGUAGE): string {
   const m = MESSAGES[language];
   const lines: string[] = [];
-  for (const violation of report.violations) lines.push(`${m.errorLabel} ${describeViolation(m, violation)}`);
+  for (const violation of report.violations)
+    lines.push(`${m.errorLabel} ${describeViolation(m, violation)}`);
   for (const { screen, problem } of report.warnings) {
     lines.push(`${m.warningLabel} ${at(screen, problem.line)}: ${describeProblem(m, problem)}`);
   }
@@ -50,7 +52,11 @@ export function renderCheck(report: HookReport, language: Language = DEFAULT_LAN
   return lines.join("\n");
 }
 
-export function renderStatus(reports: ScreenStatusReport[], language: Language = DEFAULT_LANGUAGE): string {
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+export function renderStatus(
+  reports: ScreenStatusReport[],
+  language: Language = DEFAULT_LANGUAGE,
+): string {
   const m = MESSAGES[language];
   const lines: string[] = [];
   for (const { screen, problems, staleness } of reports) {

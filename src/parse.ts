@@ -1,4 +1,11 @@
-import { DEFAULT_LANGUAGE, HEADINGS, SECTION_KEYS, sectionOf, type Language, type SectionKey } from "./language.js";
+import {
+  DEFAULT_LANGUAGE,
+  HEADINGS,
+  type Language,
+  SECTION_KEYS,
+  type SectionKey,
+  sectionOf,
+} from "./language.js";
 
 /** 一行の長さの上限（コードポイント）。サンプルの最長行から仮に決めた値で、変わりうる。 */
 export const DEFAULT_MAX_LINE_LENGTH = 80;
@@ -45,7 +52,8 @@ export interface Problem {
 }
 
 export interface ParseOptions {
-  maxLineLength?: number;
+  /** 渡さない、または undefined なら既定値 */
+  maxLineLength?: number | undefined;
   /** 見出しの言語。既定は英語 */
   language?: Language;
 }
@@ -109,6 +117,7 @@ export function splitCodeLine(text: string): { description: string; path: string
  * 画面の Markdown を読む。形が崩れていても、読めた分は screen に入れ、問題は problems に積む。
  * 文章の正しさは見ない。
  */
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export function parseScreen(source: string, options: ParseOptions = {}): ParseResult {
   const maxLineLength = options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
   const language = options.language ?? DEFAULT_LANGUAGE;
@@ -119,6 +128,8 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
   let fence: string | null = null;
 
   const lines = source.replace(/^﻿/, "").split(/\r\n|\r|\n/);
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+  // biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
   lines.forEach((raw, index) => {
     const line = index + 1;
 
@@ -127,7 +138,8 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
       const marker = fenceMatch[1] ?? "";
       if (fence === null) {
         fence = marker;
-        if (cursor.kind === "section") problems.push({ kind: "not-a-bullet", line, detail: raw.trim() });
+        if (cursor.kind === "section")
+          problems.push({ kind: "not-a-bullet", line, detail: raw.trim() });
       } else if (fence === marker) {
         fence = null;
       }
@@ -208,7 +220,8 @@ export function parseScreen(source: string, options: ParseOptions = {}): ParseRe
 
   if (screen.title === null) problems.push({ kind: "missing-title", line: null, detail: "" });
   for (const key of SECTION_KEYS) {
-    if (!seen.has(key)) problems.push({ kind: "missing-heading", line: null, detail: HEADINGS[language][key] });
+    if (!seen.has(key))
+      problems.push({ kind: "missing-heading", line: null, detail: HEADINGS[language][key] });
   }
   return { screen, problems };
 }

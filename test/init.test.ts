@@ -1,14 +1,19 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { run, type Io } from "../src/cli.js";
+import { type Io, run } from "../src/cli.js";
+import { DEFAULT_HOOK_CONFIG } from "../src/hook.js";
 import { HOOK_SCRIPT } from "../src/hookfile.js";
-import { applyInit, screensDirFromConfig, validateScreensDir, type InitAnswers } from "../src/init.js";
+import {
+  applyInit,
+  type InitAnswers,
+  screensDirFromConfig,
+  validateScreensDir,
+} from "../src/init.js";
 import { BLOCK_END, BLOCK_START, instructionBlock, upsertBlock } from "../src/instructions.js";
 import type { Prompter } from "../src/prompter.js";
 import { TestRepo } from "./helpers/repo.js";
-import { DEFAULT_HOOK_CONFIG } from "../src/hook.js";
 
 const made: TestRepo[] = [];
 afterEach(() => {
@@ -23,7 +28,12 @@ function newRepo() {
   return repo;
 }
 
-const ANSWERS: InitAnswers = { language: "en", screensDir: "docs/screens", installHook: true, writeInstructions: true };
+const ANSWERS: InitAnswers = {
+  language: "en",
+  screensDir: "docs/screens",
+  installHook: true,
+  writeInstructions: true,
+};
 
 const read = (repo: TestRepo, file: string) => readFileSync(path.join(repo.dir, file), "utf8");
 const has = (repo: TestRepo, file: string) => existsSync(path.join(repo.dir, file));
@@ -31,7 +41,11 @@ const has = (repo: TestRepo, file: string) => existsSync(path.join(repo.dir, fil
 async function exec(args: string[], cwd: string, prompt?: Prompter) {
   const out: string[] = [];
   const err: string[] = [];
-  const io: Io = { out: (t) => out.push(t), err: (t) => err.push(t), ...(prompt ? { prompt } : {}) };
+  const io: Io = {
+    out: (t) => out.push(t),
+    err: (t) => err.push(t),
+    ...(prompt ? { prompt } : {}),
+  };
   const code = await run(args, io, cwd);
   return { code, out: out.join("\n"), err: err.join("\n") };
 }
@@ -81,7 +95,9 @@ describe("instructionBlock / upsertBlock", () => {
 
   it("目印が無ければ、既存の文章を残して末尾に足す", () => {
     const result = upsertBlock("# Agents\n\nBe nice.\n", instructionBlock("en", "docs/screens"));
-    expect(result.ok && result.text.startsWith("# Agents\n\nBe nice.\n\n<!-- tidyspec:start -->")).toBe(true);
+    expect(
+      result.ok && result.text.startsWith("# Agents\n\nBe nice.\n\n<!-- tidyspec:start -->"),
+    ).toBe(true);
   });
 
   it("目印があれば、間だけを置き換え、前後は触らない。再実行しても同じ", () => {
@@ -118,14 +134,33 @@ describe("validateScreensDir / screensDirFromConfig", () => {
     expect(validateScreensDir(input)).toEqual({ ok: true, dir });
   });
 
-  it.each(["", "  ", "/etc", "../x", "a/../../x", ".", "a\\b", "docs/*", "a:b", "x[1]", "{a,b}", "!x"])("%j を断る", (input) => {
+  it.each([
+    "",
+    "  ",
+    "/etc",
+    "../x",
+    "a/../../x",
+    ".",
+    "a\\b",
+    "docs/*",
+    "a:b",
+    "x[1]",
+    "{a,b}",
+    "!x",
+  ])("%j を断る", (input) => {
     expect(validateScreensDir(input)).toMatchObject({ ok: false });
   });
 
   it("設定が「ディレクトリの全ての .md」の形ならディレクトリを取り出す", () => {
-    expect(screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["specs/**/*.md"] })).toBe("specs");
-    expect(screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["specs/*.md"] })).toBeUndefined();
-    expect(screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["a/**/*.md", "b/**/*.md"] })).toBeUndefined();
+    expect(screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["specs/**/*.md"] })).toBe(
+      "specs",
+    );
+    expect(
+      screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["specs/*.md"] }),
+    ).toBeUndefined();
+    expect(
+      screensDirFromConfig({ ...DEFAULT_HOOK_CONFIG, screens: ["a/**/*.md", "b/**/*.md"] }),
+    ).toBeUndefined();
   });
 });
 
@@ -142,7 +177,10 @@ describe("applyInit", () => {
       ],
       notes: [],
     });
-    expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({ language: "en", screens: ["docs/screens/**/*.md"] });
+    expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({
+      language: "en",
+      screens: ["docs/screens/**/*.md"],
+    });
     expect(read(repo, "AGENTS.md")).toContain(BLOCK_START);
     expect(read(repo, ".git/hooks/pre-commit")).toBe(HOOK_SCRIPT);
     expect(statSync(path.join(repo.dir, ".git/hooks/pre-commit")).mode & 0o111).not.toBe(0);
@@ -151,23 +189,40 @@ describe("applyInit", () => {
   it("dryRun は同じ結果を返し、何も書かない", async () => {
     const repo = newRepo();
     const dry = await applyInit(repo.dir, ANSWERS, { dryRun: true });
-    expect(has(repo, "tidyspec.json") || has(repo, "AGENTS.md") || has(repo, ".git/hooks/pre-commit")).toBe(false);
+    expect(
+      has(repo, "tidyspec.json") || has(repo, "AGENTS.md") || has(repo, ".git/hooks/pre-commit"),
+    ).toBe(false);
     expect(await applyInit(repo.dir, ANSWERS, { dryRun: false })).toEqual(dry);
   });
 
   it("二回目は全て unchanged で、ファイルは変わらない", async () => {
     const repo = newRepo();
     await applyInit(repo.dir, ANSWERS, { dryRun: false });
-    const before = [read(repo, "tidyspec.json"), read(repo, "AGENTS.md"), read(repo, ".git/hooks/pre-commit")];
+    const before = [
+      read(repo, "tidyspec.json"),
+      read(repo, "AGENTS.md"),
+      read(repo, ".git/hooks/pre-commit"),
+    ];
     const again = await applyInit(repo.dir, ANSWERS, { dryRun: false });
-    expect(again).toMatchObject({ ok: true, steps: [{ result: "unchanged" }, { result: "unchanged" }, { result: "unchanged" }] });
-    expect([read(repo, "tidyspec.json"), read(repo, "AGENTS.md"), read(repo, ".git/hooks/pre-commit")]).toEqual(before);
+    expect(again).toMatchObject({
+      ok: true,
+      steps: [{ result: "unchanged" }, { result: "unchanged" }, { result: "unchanged" }],
+    });
+    expect([
+      read(repo, "tidyspec.json"),
+      read(repo, "AGENTS.md"),
+      read(repo, ".git/hooks/pre-commit"),
+    ]).toEqual(before);
   });
 
   it("既存の設定の他のキーを残し、言語と置き場だけ更新する", async () => {
     const repo = newRepo();
     repo.write("tidyspec.json", '{"maxLineLength":50,"implementation":["lib/**"]}');
-    await applyInit(repo.dir, { ...ANSWERS, language: "ja", screensDir: "specs" }, { dryRun: false });
+    await applyInit(
+      repo.dir,
+      { ...ANSWERS, language: "ja", screensDir: "specs" },
+      { dryRun: false },
+    );
     expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({
       maxLineLength: 50,
       implementation: ["lib/**"],
@@ -202,7 +257,10 @@ describe("applyInit", () => {
     mkdirSync(path.join(repo.dir, ".git/hooks"), { recursive: true });
     writeFileSync(path.join(repo.dir, ".git/hooks/pre-commit"), "#!/bin/sh\necho mine\n");
     const result = await applyInit(repo.dir, ANSWERS, { dryRun: false });
-    expect(result).toMatchObject({ ok: true, steps: [{}, {}, { file: ".git/hooks/pre-commit", result: "skipped" }] });
+    expect(result).toMatchObject({
+      ok: true,
+      steps: [{}, {}, { file: ".git/hooks/pre-commit", result: "skipped" }],
+    });
     expect(result.ok && result.notes[0]).toContain("npx --no-install tidyspec check");
     expect(read(repo, ".git/hooks/pre-commit")).toBe("#!/bin/sh\necho mine\n");
   });
@@ -218,7 +276,10 @@ describe("applyInit", () => {
   it("古い自分たちのフックは更新する", async () => {
     const repo = newRepo();
     mkdirSync(path.join(repo.dir, ".git/hooks"), { recursive: true });
-    writeFileSync(path.join(repo.dir, ".git/hooks/pre-commit"), "#!/bin/sh\n# tidyspec:start old\nexit 0\n# tidyspec:end\n");
+    writeFileSync(
+      path.join(repo.dir, ".git/hooks/pre-commit"),
+      "#!/bin/sh\n# tidyspec:start old\nexit 0\n# tidyspec:end\n",
+    );
     const result = await applyInit(repo.dir, ANSWERS, { dryRun: false });
     expect(result).toMatchObject({ ok: true, steps: [{}, {}, { result: "updated" }] });
     expect(read(repo, ".git/hooks/pre-commit")).toBe(HOOK_SCRIPT);
@@ -235,14 +296,21 @@ describe("applyInit", () => {
 
   it("--no-hook と --no-instructions 相当は skipped にする", async () => {
     const repo = newRepo();
-    const result = await applyInit(repo.dir, { ...ANSWERS, installHook: false, writeInstructions: false }, { dryRun: false });
-    expect(result).toMatchObject({ steps: [{ result: "created" }, { result: "skipped" }, { result: "skipped" }] });
+    const result = await applyInit(
+      repo.dir,
+      { ...ANSWERS, installHook: false, writeInstructions: false },
+      { dryRun: false },
+    );
+    expect(result).toMatchObject({
+      steps: [{ result: "created" }, { result: "skipped" }, { result: "skipped" }],
+    });
     expect(has(repo, "AGENTS.md")).toBe(false);
   });
 });
 
 describe("入れたフックが、実際のコミットで効く", () => {
-  const SCREEN = (code: string) => `# Login\n\n## Spec\n\n- Sign in\n\n## Design\n\n- Lock\n\n## Code\n\n${code}\n\n## Data\n\n- users\n`;
+  const SCREEN = (code: string) =>
+    `# Login\n\n## Spec\n\n- Sign in\n\n## Design\n\n- Lock\n\n## Code\n\n${code}\n\n## Data\n\n- users\n`;
 
   async function repoWithHook() {
     const repo = newRepo();
@@ -262,13 +330,15 @@ describe("入れたフックが、実際のコミットで効く", () => {
   }
 
   function commit(repo: TestRepo) {
-    try {
-      execFileSync("git", ["-C", repo.dir, "commit", "-q", "-m", "change", "--allow-empty"], { stdio: "pipe", env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null" } });
-      return { code: 0, stderr: "" };
-    } catch (error) {
-      const failure = error as { status?: number; stderr?: Buffer };
-      return { code: failure.status ?? -1, stderr: failure.stderr?.toString() ?? "" };
-    }
+    const result = spawnSync(
+      "git",
+      ["-C", repo.dir, "commit", "-q", "-m", "change", "--allow-empty"],
+      {
+        encoding: "utf8",
+        env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null" },
+      },
+    );
+    return { code: result.status, stderr: result.stderr };
   }
 
   it("tidyspec が問題なしなら、コミットできる", async () => {
@@ -305,11 +375,17 @@ describe("tidyspec init（CLI）", () => {
 
   it("--yes は聞かずに、フラグか既定値で入れる", async () => {
     const repo = newRepo();
-    const result = await exec(["init", "--yes", "--lang", "ja", "--screens-dir", "specs", "--no-hook"], repo.dir);
+    const result = await exec(
+      ["init", "--yes", "--lang", "ja", "--screens-dir", "specs", "--no-hook"],
+      repo.dir,
+    );
     expect(result.code).toBe(0);
     expect(result.out).toContain("created   tidyspec.json");
     expect(result.out).toContain("skipped   pre-commit hook");
-    expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({ language: "ja", screens: ["specs/**/*.md"] });
+    expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({
+      language: "ja",
+      screens: ["specs/**/*.md"],
+    });
     expect(read(repo, "AGENTS.md")).toContain("画面の仕様");
   });
 
@@ -319,12 +395,22 @@ describe("tidyspec init（CLI）", () => {
     const result = await exec(["init"], repo.dir, prompt);
     expect(result.code).toBe(0);
     expect(prompt.asked).toHaveLength(5);
-    expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({ language: "ja", screens: ["specs/**/*.md"] });
+    expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({
+      language: "ja",
+      screens: ["specs/**/*.md"],
+    });
 
     const flagged = newRepo();
     const some = scripted([true, true]);
-    await exec(["init", "--lang", "en", "--screens-dir", "docs/screens", "--no-hook"], flagged.dir, some);
-    expect(some.asked).toEqual(["Add the screen-spec instructions for coding agents to AGENTS.md?", "Apply these changes?"]);
+    await exec(
+      ["init", "--lang", "en", "--screens-dir", "docs/screens", "--no-hook"],
+      flagged.dir,
+      some,
+    );
+    expect(some.asked).toEqual([
+      "Add the screen-spec instructions for coding agents to AGENTS.md?",
+      "Apply these changes?",
+    ]);
   });
 
   it("最後の確認で断ると、何も書かない", async () => {
@@ -332,7 +418,9 @@ describe("tidyspec init（CLI）", () => {
     const result = await exec(["init"], repo.dir, scripted(["en", "", true, true, false]));
     expect(result.code).toBe(0);
     expect(result.out).toContain("Nothing changed.");
-    expect(has(repo, "tidyspec.json") || has(repo, "AGENTS.md") || has(repo, ".git/hooks/pre-commit")).toBe(false);
+    expect(
+      has(repo, "tidyspec.json") || has(repo, "AGENTS.md") || has(repo, ".git/hooks/pre-commit"),
+    ).toBe(false);
   });
 
   it("使えない置き場と、知らない言語は 2 で、何も書かない", async () => {
@@ -347,9 +435,16 @@ describe("tidyspec init（CLI）", () => {
   it("init したあとの check と status が、その設定で動く", async () => {
     const repo = newRepo();
     await exec(["init", "--yes", "--no-hook"], repo.dir);
-    repo.write("docs/screens/login.md", `# Login\n\n## Spec\n\n- Sign in\n\n## Design\n\n- Lock\n\n## Code\n\n- Lock: src/a.ts\n\n## Data\n\n- users\n`);
+    repo.write(
+      "docs/screens/login.md",
+      `# Login\n\n## Spec\n\n- Sign in\n\n## Design\n\n- Lock\n\n## Code\n\n- Lock: src/a.ts\n\n## Data\n\n- users\n`,
+    );
     repo.write("src/a.ts", "1");
     repo.commit("add screen");
-    expect(await exec(["status"], repo.dir)).toEqual({ code: 0, out: "docs/screens/login.md: up to date", err: "" });
+    expect(await exec(["status"], repo.dir)).toEqual({
+      code: 0,
+      out: "docs/screens/login.md: up to date",
+      err: "",
+    });
   });
 });

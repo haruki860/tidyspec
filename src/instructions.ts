@@ -71,17 +71,27 @@ export function upsertBlock(existing: string | undefined, block: string): Upsert
   }
   const start = starts[0];
   const end = ends[0];
-  if (starts.length !== 1 || ends.length !== 1 || start === undefined || end === undefined || end < start) {
+  if (
+    starts.length !== 1 ||
+    ends.length !== 1 ||
+    start === undefined ||
+    end === undefined ||
+    end < start
+  ) {
     return {
       ok: false,
       error: `the ${BLOCK_START} / ${BLOCK_END} markers are damaged (need exactly one of each, in that order); fix or remove them and run init again`,
     };
   }
-  return { ok: true, text: existing.slice(0, start) + block + existing.slice(end + BLOCK_END.length) };
+  return {
+    ok: true,
+    text: existing.slice(0, start) + block + existing.slice(end + BLOCK_END.length),
+  };
 }
 
 function occurrences(text: string, needle: string): number[] {
   const found: number[] = [];
-  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + needle.length)) found.push(at);
+  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + needle.length))
+    found.push(at);
   return found;
 }

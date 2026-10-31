@@ -41,7 +41,8 @@ export async function inspectHook(root: string): Promise<HookState> {
   try {
     content = await readFile(file, "utf8");
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") return { kind: "none", file };
+    if (error instanceof Error && "code" in error && error.code === "ENOENT")
+      return { kind: "none", file };
     throw error;
   }
   return content.includes(HOOK_START) ? { kind: "ours", file, content } : { kind: "foreign", file };

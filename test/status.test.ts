@@ -4,6 +4,7 @@ import { checkCommit, DEFAULT_HOOK_CONFIG } from "../src/hook.js";
 
 // このファイルのフィクスチャは日本語の見出し
 const JA = { ...DEFAULT_HOOK_CONFIG, language: "ja" as const };
+
 import { renderCheck, renderStatus, sanitize, statusExitCode } from "../src/render.js";
 import { checkAllScreens } from "../src/status.js";
 import { TestRepo } from "./helpers/repo.js";
@@ -97,13 +98,20 @@ describe("statusExitCode", () => {
 
 describe("statusExitCode と判定できない状態", () => {
   const undetermined = (status: "unknown" | "no-git") => [
-    { screen: "docs/screens/login.md", problems: [], staleness: { status, files: [{ path: "src/a.ts", state: "unchecked" as const }] } },
+    {
+      screen: "docs/screens/login.md",
+      problems: [],
+      staleness: { status, files: [{ path: "src/a.ts", state: "unchecked" as const }] },
+    },
   ];
 
-  it.each(["unknown", "no-git"] as const)("%s は既定では失敗にせず、strict のときだけ失敗にする", (status) => {
-    expect(statusExitCode(undetermined(status), false)).toBe(0);
-    expect(statusExitCode(undetermined(status), true)).toBe(1);
-  });
+  it.each(["unknown", "no-git"] as const)(
+    "%s は既定では失敗にせず、strict のときだけ失敗にする",
+    (status) => {
+      expect(statusExitCode(undetermined(status), false)).toBe(0);
+      expect(statusExitCode(undetermined(status), true)).toBe(1);
+    },
+  );
 
   it("判定できない画面の表示は、揃っているとは言わず、理由を言う", () => {
     expect(renderStatus(undetermined("unknown"), "ja")).not.toContain("揃っている");
@@ -122,6 +130,7 @@ describe("sanitize", () => {
     repo.write("docs/screens/login.md", screen("- 判定\u001b]0;pwned\u0007はここ"));
     repo.git("add", "-A");
     const text = renderCheck(await checkCommit(repo.dir, JA), "ja");
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting that no control character reaches the output
     expect(text).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f]/);
     expect(text).toContain("コードの行にファイルパスがありません");
   });
@@ -134,7 +143,11 @@ describe("renderStatus", () => {
     repo.commit("change b");
     const text = renderStatus(await checkAllScreens(repo.dir, JA), "ja");
     expect(text).toBe(
-      ["docs/screens/login.md: 揃っている", "docs/screens/new.md:", "  実装の方が新しい: src/b.ts"].join("\n"),
+      [
+        "docs/screens/login.md: 揃っている",
+        "docs/screens/new.md:",
+        "  実装の方が新しい: src/b.ts",
+      ].join("\n"),
     );
   });
 });
@@ -145,11 +158,19 @@ describe("英語の出力", () => {
     repo.write("src/b.ts", "2");
     repo.commit("change b");
     const status = renderStatus(await checkAllScreens(repo.dir, { ...JA, language: "ja" }), "en");
-    expect(status).toBe(["docs/screens/login.md: up to date", "docs/screens/new.md:", "  code is newer than the spec: src/b.ts"].join("\n"));
+    expect(status).toBe(
+      [
+        "docs/screens/login.md: up to date",
+        "docs/screens/new.md:",
+        "  code is newer than the spec: src/b.ts",
+      ].join("\n"),
+    );
     repo.write("src/a.ts", "2");
     repo.git("add", "-A");
     const check = renderCheck(await checkCommit(repo.dir, JA), "en");
-    expect(check).toContain("src/a.ts changed, but no screen that lists it under Code was updated.");
+    expect(check).toContain(
+      "src/a.ts changed, but no screen that lists it under Code was updated.",
+    );
     expect(check).toContain("docs/screens/login.md");
   });
 });

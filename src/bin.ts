@@ -4,6 +4,7 @@ import { run } from "./cli.js";
 import type { Prompter } from "./prompter.js";
 
 /** 端末につながっているときだけ作る。つながっていなければ、質問は出せない。 */
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 function terminalPrompter(): { prompter: Prompter; close(): void } {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   // 行は届いた順にためておく。質問より先に届いた行（貼り付けなど）を、捨てずに渡すため。
@@ -30,7 +31,10 @@ function terminalPrompter(): { prompter: Prompter; close(): void } {
 
   const prompter: Prompter = {
     async select(question, choices, fallback) {
-      const fallbackIndex = Math.max(0, choices.findIndex((choice) => choice.value === fallback));
+      const fallbackIndex = Math.max(
+        0,
+        choices.findIndex((choice) => choice.value === fallback),
+      );
       for (;;) {
         const list = choices.map((choice, i) => `  ${i + 1}) ${choice.label}`).join("\n");
         const answer = (await read(`${question}\n${list}\nChoose [${fallbackIndex + 1}]: `)).trim();
@@ -40,9 +44,12 @@ function terminalPrompter(): { prompter: Prompter; close(): void } {
         process.stdout.write("Please enter one of the numbers.\n");
       }
     },
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
     async confirm(question, fallback) {
       for (;;) {
-        const answer = (await read(`${question} [${fallback ? "Y/n" : "y/N"}]: `)).trim().toLowerCase();
+        const answer = (await read(`${question} [${fallback ? "Y/n" : "y/N"}]: `))
+          .trim()
+          .toLowerCase();
         if (answer === "") return fallback;
         if (answer === "y" || answer === "yes") return true;
         if (answer === "n" || answer === "no") return false;

@@ -2,7 +2,7 @@ import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { git } from "./git.js";
 import type { HookConfig } from "./hook.js";
-import { parseScreen, type Problem } from "./parse.js";
+import { type Problem, parseScreen } from "./parse.js";
 import { checkStaleness, type ScreenReport } from "./staleness.js";
 
 export interface ScreenStatusReport {
@@ -12,7 +12,10 @@ export interface ScreenStatusReport {
 }
 
 /** 作業ツリーにある全ての画面について、形の問題と古さを調べる。git の中でだけ動く。 */
-export async function checkAllScreens(repo: string, config: HookConfig): Promise<ScreenStatusReport[]> {
+export async function checkAllScreens(
+  repo: string,
+  config: HookConfig,
+): Promise<ScreenStatusReport[]> {
   // 追跡中のものと、まだ追跡していない新しい画面の両方。
   const listed = await git(
     repo,
@@ -26,8 +29,15 @@ export async function checkAllScreens(repo: string, config: HookConfig): Promise
   for (const screen of screens) {
     const source = await readRegularFile(path.join(repo, screen));
     if (source === undefined) continue;
-    const { screen: parsed, problems } = parseScreen(source, { maxLineLength: config.maxLineLength, language: config.language });
-    const staleness = await checkStaleness({ repo, screen, code: parsed.code.map((entry) => entry.path) });
+    const { screen: parsed, problems } = parseScreen(source, {
+      maxLineLength: config.maxLineLength,
+      language: config.language,
+    });
+    const staleness = await checkStaleness({
+      repo,
+      screen,
+      code: parsed.code.map((entry) => entry.path),
+    });
     reports.push({ screen, problems, staleness });
   }
   return reports;

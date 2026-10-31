@@ -33,12 +33,23 @@ export type DirResult = { ok: true; dir: string } | { ok: false; error: string }
  */
 export function validateScreensDir(input: string): DirResult {
   const trimmed = input.trim().replace(/\/+$/, "");
-  if (trimmed === "" || trimmed.startsWith("/") || trimmed.includes("\\") || /[*?[\]{}!:\0]/.test(trimmed)) {
-    return { ok: false, error: `not a usable directory: ${JSON.stringify(input)} (use a relative path like docs/screens)` };
+  if (
+    trimmed === "" ||
+    trimmed.startsWith("/") ||
+    trimmed.includes("\\") ||
+    /[*?[\]{}!:\0]/.test(trimmed)
+  ) {
+    return {
+      ok: false,
+      error: `not a usable directory: ${JSON.stringify(input)} (use a relative path like docs/screens)`,
+    };
   }
   const normalized = path.posix.normalize(trimmed);
   if (normalized === "." || normalized.split("/").includes("..")) {
-    return { ok: false, error: `the screens directory must be inside the repository: ${JSON.stringify(input)}` };
+    return {
+      ok: false,
+      error: `the screens directory must be inside the repository: ${JSON.stringify(input)}`,
+    };
   }
   return { ok: true, dir: normalized };
 }
@@ -65,13 +76,19 @@ async function readIfExists(file: string): Promise<string | undefined> {
 }
 
 function sameStrings(value: unknown, expected: string[]): boolean {
-  return Array.isArray(value) && value.length === expected.length && value.every((item, i) => item === expected[i]);
+  return (
+    Array.isArray(value) &&
+    value.length === expected.length &&
+    value.every((item, i) => item === expected[i])
+  );
 }
 
 /**
  * init が書くものを決めて書く。dryRun のときは書かずに、同じ結果だけ返す
  * （確認で見せた内容と、実際に起きることがずれないように、同じ処理を通す）。
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: TODO(decision 001): split or simplify in the refactor PRs; remove when fixed
 export async function applyInit(
   root: string,
   answers: InitAnswers,
@@ -88,22 +105,26 @@ export async function applyInit(
   // 1. tidyspec.json。他のキー（implementation など）は、書き換えずに残す。
   const configPath = path.join(root, CONFIG_FILE);
   const configText = await readIfExists(configPath);
-  let record: Record<string, unknown> = {};
+  let stored = new Map<string, unknown>();
   let maxLineLength: number | undefined;
   if (configText !== undefined) {
     const parsed = parseConfig(configText);
     if (!parsed.ok) return { ok: false, error: parsed.error };
     const value: unknown = JSON.parse(configText);
-    if (typeof value === "object" && value !== null) record = Object.fromEntries(Object.entries(value));
+    if (typeof value === "object" && value !== null) stored = new Map(Object.entries(value));
     maxLineLength = parsed.config.maxLineLength;
   }
   const screens = [`${answers.screensDir}/**/*.md`];
-  if (configText !== undefined && record.language === answers.language && sameStrings(record.screens, screens)) {
+  if (
+    configText !== undefined &&
+    stored.get("language") === answers.language &&
+    sameStrings(stored.get("screens"), screens)
+  ) {
     steps.push({ file: CONFIG_FILE, result: "unchanged" });
   } else {
-    record.language = answers.language;
-    record.screens = screens;
-    write(configPath, `${JSON.stringify(record, null, 2)}\n`);
+    stored.set("language", answers.language);
+    stored.set("screens", screens);
+    write(configPath, `${JSON.stringify(Object.fromEntries(stored), null, 2)}\n`);
     steps.push({ file: CONFIG_FILE, result: configText === undefined ? "created" : "updated" });
   }
 
@@ -118,11 +139,16 @@ export async function applyInit(
       steps.push({ file: INSTRUCTIONS_FILE, result: "unchanged" });
     } else {
       write(file, upserted.text);
-      steps.push({ file: INSTRUCTIONS_FILE, result: existing === undefined ? "created" : "updated" });
+      steps.push({
+        file: INSTRUCTIONS_FILE,
+        result: existing === undefined ? "created" : "updated",
+      });
     }
     const claude = await readIfExists(path.join(root, "CLAUDE.md"));
     if (claude !== undefined && !claude.includes("AGENTS.md")) {
-      notes.push("CLAUDE.md exists but does not mention AGENTS.md. Claude Code reads CLAUDE.md, so add the line `@AGENTS.md` to it.");
+      notes.push(
+        "CLAUDE.md exists but does not mention AGENTS.md. Claude Code reads CLAUDE.md, so add the line `@AGENTS.md` to it.",
+      );
     }
   } else {
     steps.push({ file: INSTRUCTIONS_FILE, result: "skipped" });
@@ -135,11 +161,15 @@ export async function applyInit(
     switch (hook.kind) {
       case "custom-hooks-path":
         steps.push({ file: "pre-commit hook", result: "skipped" });
-        notes.push(`core.hooksPath is set to "${hook.value}" (a hook manager such as husky or lefthook?). Left untouched. Add \`${command}\` to its pre-commit step.`);
+        notes.push(
+          `core.hooksPath is set to "${hook.value}" (a hook manager such as husky or lefthook?). Left untouched. Add \`${command}\` to its pre-commit step.`,
+        );
         break;
       case "foreign":
         steps.push({ file: path.relative(root, hook.file), result: "skipped" });
-        notes.push(`A pre-commit hook already exists at ${path.relative(root, hook.file)}. Left untouched. Add \`${command}\` to it.`);
+        notes.push(
+          `A pre-commit hook already exists at ${path.relative(root, hook.file)}. Left untouched. Add \`${command}\` to it.`,
+        );
         break;
       case "ours":
       case "none": {

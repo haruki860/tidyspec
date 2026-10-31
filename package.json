@@ -11,9 +11,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "lint": "biome check",
+    "format": "biome format --write && biome check --write --only=assist/source/organizeImports",
+    "test": "vitest run --passWithNoTests",
+    "check": "npm run typecheck && npm run lint && npm test"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.4",
     "@types/node": "^26.6.6",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
