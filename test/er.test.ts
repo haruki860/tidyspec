@@ -76,20 +76,33 @@ describe("renderEr", () => {
     expect(only).not.toContain("er-line");
 
     const both = renderEr(selectTables(schema, ["sessions", "users"]).found);
-    expect(both).not.toContain("marker");
-    // 線が 1 本、参照する側のカラスの足が 3 本、参照される側の縦棒が 1 本。
-    expect(both.match(/class="er-line"/g)).toHaveLength(1 + 3 + 1);
+    // 線は 1 本で、矢じりは始点（子の側）に付く。
+    expect(both.match(/class="er-line"/g)).toHaveLength(1);
+    expect(both).toContain('marker-start="url(#er-arrow)"');
+    expect(both).not.toContain("marker-end");
     expect(both).toContain(">PK<");
     expect(both).toContain(">FK<");
   });
 
-  it("外部キーの列が主キーそのものなら、一対一（足ではなく縦棒が両端）", () => {
-    const schema = parseSchema([
-      `create table a (id int primary key);
-       create table b (a_id int primary key references a(id));`,
+  it("親は左、子は右に置き、矢印は左から右へ向く（参照が連なれば、さらに右へ）", () => {
+    const chain = parseSchema([
+      `create table c (id int primary key, b_id int references b(id));
+       create table b (id int primary key, a_id int references a(id));
+       create table a (id int primary key);`,
     ]);
-    const svg = renderEr(selectTables(schema, ["a", "b"]).found);
-    expect(svg.match(/class="er-line"/g)).toHaveLength(1 + 1 + 1);
+    const svg = renderEr(selectTables(chain, ["c", "b", "a"]).found);
+    const x = (name: string) =>
+      Number(new RegExp(`x="(\\d+)" y="\\d+">${name}</text>`).exec(svg)?.[1]);
+    expect(x("a")).toBeLessThan(x("b"));
+    expect(x("b")).toBeLessThan(x("c"));
+  });
+
+  it("参照が循環していても描ける", () => {
+    const loop = parseSchema([
+      `create table a (id int primary key, b_id int references b(id));
+       create table b (id int primary key, a_id int references a(id));`,
+    ]);
+    expect(renderEr(selectTables(loop, ["a", "b"]).found)).toContain("<svg");
   });
 
   it("名前に仕込まれたタグは無害になる", () => {

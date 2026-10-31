@@ -5,19 +5,18 @@ import { escapeHtml } from "./escape.js";
 
 /**
  * 画面の「データ」に書いたテーブルと、その間の外部キーだけを、SVG の ER 図にする。
- * 他の画面のテーブルは出さない（SPEC）。レイアウトは格子に並べるだけで、線が交わることはある。
+ * 他の画面のテーブルは出さない（SPEC）。親を左、子を右に並べるので、矢印は左から右へ向く。線が交わることはある。
  * 描くのは文字列だけで、名前はすべてエスケープする。色は CSS の変数（style.ts）に任せる。
  */
 
-const BOX_WIDTH = 248;
+const BOX_WIDTH = 240;
 const HEADER = 34;
 const ROW = 24;
-const GAP_X = 80;
+const GAP_X = 56;
 const GAP_Y = 48;
 const PAD = 16;
-const COLUMNS_PER_ROW = 2;
-const MAX_NAME = 17;
-const MAX_TYPE = 16;
+const MAX_NAME = 14;
+const MAX_TYPE = 13;
 
 interface Box {
   table: Table;
@@ -45,23 +44,60 @@ function shorten(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-function layout(tables: Table[]): Box[] {
-  const heights = tables.map((table) => HEADER + Math.max(1, table.columns.length) * ROW);
-  const boxes: Box[] = [];
-  let y = PAD;
-  for (let start = 0; start < tables.length; start += COLUMNS_PER_ROW) {
-    const rowHeights = heights.slice(start, start + COLUMNS_PER_ROW);
-    tables.slice(start, start + COLUMNS_PER_ROW).forEach((table, i) => {
-      boxes.push({
-        table,
-        x: PAD + i * (BOX_WIDTH + GAP_X),
-        y,
-        height: heights[start + i] ?? HEADER,
-      });
+function parentsOf(tables: Table[], child: number): number[] {
+  const table = tables[child];
+  if (table === undefined) return [];
+  const indexes = table.foreignKeys.map((fk) =>
+    tables.findIndex((t) => sameName(t.name, fk.table)),
+  );
+  return indexes.filter((parent) => parent !== -1 && parent !== child);
+}
+
+/** 子は、全ての親より右。循環があっても止まるよう、表の数だけ繰り返して打ち切る。 */
+function pushChildrenRight(tables: Table[], layers: number[]): void {
+  for (let round = 0; round < tables.length; round += 1) {
+    tables.forEach((_, child) => {
+      for (const parent of parentsOf(tables, child)) {
+        const wanted = (layers[parent] ?? 0) + 1;
+        layers[child] = Math.min(tables.length - 1, Math.max(layers[child] ?? 0, wanted));
+      }
     });
-    y += Math.max(...rowHeights) + GAP_Y;
   }
-  return boxes;
+}
+
+/**
+ * 親を持たない表は、いちばん近い子の隣まで右へ寄せる。
+ * 寄せないと、遠い子への線が、間にある別の表の箱の裏を通って読めなくなる。
+ */
+function pullSourcesRight(tables: Table[], layers: number[]): void {
+  tables.forEach((_, source) => {
+    if (parentsOf(tables, source).length > 0) return;
+    const childLayers = tables.flatMap((__, child) =>
+      parentsOf(tables, child).includes(source) ? [layers[child] ?? 0] : [],
+    );
+    if (childLayers.length > 0) layers[source] = Math.max(0, Math.min(...childLayers) - 1);
+  });
+}
+
+/** 親（参照される側）を左、子（外部キーを持つ側）を右に置くための、左から数えた列の番号。 */
+function layersOf(tables: Table[]): number[] {
+  const layers = tables.map(() => 0);
+  pushChildrenRight(tables, layers);
+  pullSourcesRight(tables, layers);
+  return layers;
+}
+
+/** 列ごとに、「データ」に書いた順で縦に並べる。 */
+function layout(tables: Table[]): Box[] {
+  const layers = layersOf(tables);
+  const nextY = new Map<number, number>();
+  return tables.map((table, i) => {
+    const layer = layers[i] ?? 0;
+    const y = nextY.get(layer) ?? PAD;
+    const height = HEADER + Math.max(1, table.columns.length) * ROW;
+    nextY.set(layer, y + height + GAP_Y);
+    return { table, x: PAD + layer * (BOX_WIDTH + GAP_X), y, height };
+  });
 }
 
 function foreignKeyColumns(table: Table): Set<string> {
@@ -109,39 +145,10 @@ function sideX(box: Box, side: "left" | "right"): number {
   return side === "right" ? box.x + BOX_WIDTH : box.x;
 }
 
-const FOOT = 12;
-const SPREAD = 6;
-
-/** 辺の点 (x, y) から外向き（dir が +1 なら右、-1 なら左）に出る線の、箱の側の端につける印。 */
-function crowsFoot(x: number, y: number, dir: number): string {
-  const tip = x + dir * FOOT;
-  return [-SPREAD, 0, SPREAD]
-    .map((spread) => `<line class="er-line" x1="${tip}" y1="${y}" x2="${x}" y2="${y + spread}"/>`)
-    .join("");
-}
-
-/** 「一」の印。箱の縁から少し離れた縦棒。 */
-function oneBar(x: number, y: number, dir: number): string {
-  const at = x + dir * FOOT * 0.8;
-  return `<line class="er-line" x1="${at}" y1="${y - SPREAD}" x2="${at}" y2="${y + SPREAD}"/>`;
-}
-
-/** 外部キーの列が、その表の主キーそのものなら一対一。そうでなければ、参照先の一に対して多。 */
-function isOneToOne(table: Table, foreignKey: ForeignKey): boolean {
-  const primary = table.columns
-    .filter((column) => column.primaryKey)
-    .map((c) => c.name.toLowerCase());
-  const columns = foreignKey.columns.map((c) => c.toLowerCase());
-  return (
-    primary.length > 0 &&
-    primary.length === columns.length &&
-    columns.every((c) => primary.includes(c))
-  );
-}
-
 /**
  * 横の位置が違えば向かい合う辺から、同じ列なら同じ側の辺から出て、外へふくらむ曲線にする。
- * 参照する側（外部キーを持つ表）にカラスの足（多）、参照される側に縦棒（一）を付ける。矢印は使わない。
+ * 矢印は、参照される表（親）から、外部キーを持つ表（子）へ向ける。「親が子を持つ」と読める向き。
+ * 線は子の側から描き始めるので、矢じりは線の始点に付ける。
  */
 function renderEdge(from: Box, to: Box, foreignKey: ForeignKey): string {
   const sameColumn = from.x === to.x;
@@ -153,11 +160,7 @@ function renderEdge(from: Box, to: Box, foreignKey: ForeignKey): string {
   const bulge = sameColumn ? 56 : GAP_X / 2;
   const out = rightward ? bulge : -bulge;
   const into = sameColumn ? bulge : -out;
-  const line = `<path class="er-line" d="M${startX} ${startY} C${startX + out} ${startY} ${endX + into} ${endY} ${endX} ${endY}"/>`;
-  const manySide = isOneToOne(from.table, foreignKey)
-    ? oneBar(startX, startY, Math.sign(out))
-    : crowsFoot(startX, startY, Math.sign(out));
-  return line + manySide + oneBar(endX, endY, Math.sign(into));
+  return `<path class="er-line" d="M${startX} ${startY} C${startX + out} ${startY} ${endX + into} ${endY} ${endX} ${endY}" marker-start="url(#er-arrow)"/>`;
 }
 
 function renderEdges(boxes: Box[]): string {
@@ -178,6 +181,7 @@ export function renderEr(tables: Table[]): string {
   const width = Math.max(...boxes.map((box) => box.x + BOX_WIDTH)) + PAD;
   const height = Math.max(...boxes.map((box) => box.y + box.height)) + PAD;
   return `<svg class="er" viewBox="0 0 ${width} ${height}" width="${width}" role="img">
+<defs><marker id="er-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path class="er-arrow" d="M0 0 L10 5 L0 10 z"/></marker></defs>
 ${renderEdges(boxes)}${boxes.map(renderBox).join("")}
 </svg>`;
 }
