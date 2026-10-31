@@ -16,7 +16,8 @@ export interface SpecChange {
 /** 画面一つの変更として表示する行数の上限。巨大な差分でページを重くしない。 */
 export const MAX_DIFF_LINES = 120;
 
-function diffLinesOf(diff: string): DiffLine[] {
+/** 差分の本文から、追加・削除の行だけを取り出す。 */
+export function changedLines(diff: string): DiffLine[] {
   const start = diff.indexOf("\n@@");
   // @@ が無い差分（モード変更だけ、バイナリ）の `---` / `+++` は、本文ではなくヘッダ。
   if (start === -1) return [];
@@ -39,7 +40,7 @@ export function parseLastChange(output: string): SpecChange | undefined {
   if (commit === undefined || date === undefined || subject === undefined || rest.length === 0) {
     return undefined;
   }
-  const lines = diffLinesOf(rest.join("\0"));
+  const lines = changedLines(rest.join("\0"));
   if (lines.length === 0) return undefined;
   return {
     commit,

@@ -1,7 +1,9 @@
 import { parseArgs } from "node:util";
 import { checkCommit } from "../checks/hook.js";
 import { renderCheck, renderStatus, statusExitCode } from "../checks/render.js";
+import { renderSummary } from "../checks/renderSummary.js";
 import { checkAllScreens } from "../checks/status.js";
+import { summarize } from "../checks/summary.js";
 import { type Config, loadConfig } from "../config.js";
 import { isLanguage } from "../core/language.js";
 import { git } from "../repo/git.js";
@@ -16,6 +18,7 @@ Commands:
   check    Inspect what is staged for commit (for a commit hook)
   status   Check every screen for format problems and for code newer than the spec
   preview  Show the screens in the browser (a local page, read-only)
+  summary  Print Markdown for a PR description: screens changed since the base branch
 
 Options:
   --json     Print the result as JSON
@@ -26,6 +29,9 @@ Options for init (without a terminal, pass --yes):
   --screens-dir <d>   Directory for the screen files (default: docs/screens)
   --no-hook           Do not install the pre-commit hook
   --no-instructions   Do not write the agent instructions
+
+Options for summary:
+  --base <ref>        Branch or commit to compare with (default: origin/HEAD, main or master)
 
 Options for preview:
   --port <n>          Port to listen on (default: 4321, 0 for any free port); only 127.0.0.1
@@ -47,6 +53,7 @@ const OPTIONS = {
   "no-hook": { type: "boolean" },
   "no-instructions": { type: "boolean" },
   port: { type: "string" },
+  base: { type: "string" },
 } as const;
 
 function readArguments(argv: string[]) {
@@ -67,10 +74,10 @@ function tryReadArguments(argv: string[]): ReadResult {
 }
 
 type Arguments = ReturnType<typeof readArguments>;
-type Command = "init" | "check" | "status" | "preview";
+type Command = "init" | "check" | "status" | "preview" | "summary";
 
 function isCommand(value: string | undefined): value is Command {
-  return value === "init" || value === "check" || value === "status" || value === "preview";
+  return ["init", "check", "status", "preview", "summary"].includes(value ?? "");
 }
 
 function fail(io: Io, message: string): number {
@@ -122,6 +129,21 @@ async function runStatus(
   return statusExitCode(reports, output.strict);
 }
 
+async function runSummary(
+  root: string,
+  config: Config,
+  context: { output: Output; base: string | undefined },
+): Promise<number> {
+  const { output, base } = context;
+  const result = await summarize(root, config, base);
+  if (!result.ok) return fail(output.io, result.error);
+  const { summary } = result;
+  output.io.out(
+    output.json ? JSON.stringify(summary, null, 2) : renderSummary(summary, config.language),
+  );
+  return 0;
+}
+
 async function repoRoot(cwd: string): Promise<string | undefined> {
   const top = await git(cwd, ["rev-parse", "--show-toplevel"]);
   const root = top.stdout.trim();
@@ -146,9 +168,19 @@ async function runInRepo(
       ? runPreview(root, loaded.config, { io, port: port.port })
       : fail(io, port.error);
   }
+  return runConfigured(command, root, { config: loaded.config, args, io });
+}
+
+async function runConfigured(
+  command: "check" | "status" | "summary",
+  root: string,
+  context: { config: Config; args: Arguments; io: Io },
+): Promise<number> {
+  const { config, args, io } = context;
   const output = { io, json: args.values.json ?? false };
-  if (command === "check") return runCheck(root, loaded.config, output);
-  return runStatus(root, loaded.config, { ...output, strict: args.values.strict ?? false });
+  if (command === "summary") return runSummary(root, config, { output, base: args.values.base });
+  if (command === "check") return runCheck(root, config, output);
+  return runStatus(root, config, { ...output, strict: args.values.strict ?? false });
 }
 
 /** コマンドを実行して終了コードを返す。出力は io に渡し、プロセスは終了させない。 */
