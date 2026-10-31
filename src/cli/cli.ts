@@ -7,6 +7,7 @@ import { isLanguage } from "../core/language.js";
 import { git } from "../repo/git.js";
 import { type InitFlags, runInit } from "./initCommand.js";
 import type { Io } from "./io.js";
+import { parsePort, runPreview } from "./previewCommand.js";
 
 const USAGE = `Usage: tidyspec <command> [options]
 
@@ -14,6 +15,7 @@ Commands:
   init     Set up tidyspec.json, the agent instructions in AGENTS.md and a pre-commit hook (asks questions)
   check    Inspect what is staged for commit (for a commit hook)
   status   Check every screen for format problems and for code newer than the spec
+  preview  Show the screens in the browser (a local page, read-only)
 
 Options:
   --json     Print the result as JSON
@@ -24,6 +26,9 @@ Options for init (without a terminal, pass --yes):
   --screens-dir <d>   Directory for the screen files (default: docs/screens)
   --no-hook           Do not install the pre-commit hook
   --no-instructions   Do not write the agent instructions
+
+Options for preview:
+  --port <n>          Port to listen on (default: 4321, 0 for any free port); only 127.0.0.1
 
 Other options:
   --strict   For status, also fail when staleness cannot be determined (e.g. a shallow clone)
@@ -41,6 +46,7 @@ const OPTIONS = {
   "screens-dir": { type: "string" },
   "no-hook": { type: "boolean" },
   "no-instructions": { type: "boolean" },
+  port: { type: "string" },
 } as const;
 
 function readArguments(argv: string[]) {
@@ -61,10 +67,10 @@ function tryReadArguments(argv: string[]): ReadResult {
 }
 
 type Arguments = ReturnType<typeof readArguments>;
-type Command = "init" | "check" | "status";
+type Command = "init" | "check" | "status" | "preview";
 
 function isCommand(value: string | undefined): value is Command {
-  return value === "init" || value === "check" || value === "status";
+  return value === "init" || value === "check" || value === "status" || value === "preview";
 }
 
 function fail(io: Io, message: string): number {
@@ -134,6 +140,12 @@ async function runInRepo(
   }
   const loaded = await loadConfig(root);
   if (!loaded.ok) return fail(io, loaded.error);
+  if (command === "preview") {
+    const port = parsePort(args.values.port);
+    return port.ok
+      ? runPreview(root, loaded.config, { io, port: port.port })
+      : fail(io, port.error);
+  }
   const output = { io, json: args.values.json ?? false };
   if (command === "check") return runCheck(root, loaded.config, output);
   return runStatus(root, loaded.config, { ...output, strict: args.values.strict ?? false });
