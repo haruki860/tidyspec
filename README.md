@@ -20,6 +20,8 @@ tidyspec check    # inspect what is staged; for a commit hook
 tidyspec status   # are any screens behind the code they point to?
 ```
 
+The instructions go in `AGENTS.md`, which Claude Code, Codex and Cursor all read. An older Claude Code that only reads `CLAUDE.md` needs the line `@AGENTS.md` added to it.
+
 `init` asks questions only in a terminal; coding agents and CI pass `--yes` (with `--lang`, `--screens-dir`, `--no-hook`, `--no-instructions`). `check` and `status` take `--json`. Exit codes: 0 ok, 1 problems found, 2 usage, config or git failure. Settings live in an optional `tidyspec.json` (`screens`, `implementation`, `maxLineLength`, `language`). `language` is `en` (default) or `ja`; it sets the section headings (`Spec / Design / Code / Data` or `仕様 / 設計 / コード / データ`) and the language of the findings. See [examples/shop-en](examples/shop-en) and [examples/shop](examples/shop) (Japanese).
 
 ## Development
