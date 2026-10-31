@@ -7,6 +7,7 @@ export interface Labels {
   back: string;
   noScreens: string;
   problems: string;
+  ungrouped: string;
   notInSchema: string;
   onThisPage: string;
   summary(total: number, behind: number): string;
@@ -19,6 +20,7 @@ export const LABELS: Record<Language, Labels> = {
     back: "All screens",
     noScreens: "No screens found",
     problems: "Problems",
+    ungrouped: "General",
     notInSchema: "not in the schema",
     onThisPage: "On this page",
     summary: (total, behind) => `${total} screens · ${behind} need attention`,
@@ -36,6 +38,7 @@ export const LABELS: Record<Language, Labels> = {
     back: "画面の一覧",
     noScreens: "画面が見つかりません",
     problems: "指摘",
+    ungrouped: "全般",
     notInSchema: "スキーマにない",
     onThisPage: "このページ",
     summary: (total, behind) => `${total} 画面 · 要確認 ${behind}`,

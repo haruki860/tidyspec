@@ -5,6 +5,7 @@ import { type Item, type Problem, severityOf } from "../core/parse.js";
 import type { Schema } from "../core/schema.js";
 import { renderEr, selectTables } from "./er.js";
 import { escapeHtml } from "./escape.js";
+import { groupScreens, type ScreenGroup } from "./groups.js";
 import { LABELS } from "./labels.js";
 import { STYLE } from "./style.js";
 
@@ -54,25 +55,49 @@ function screenHref(view: ScreenInspection): string {
   return `/screen?file=${encodeURIComponent(view.screen)}`;
 }
 
+function groupName(group: ScreenGroup, language: Language): string {
+  return group.name === "" ? LABELS[language].ungrouped : group.name;
+}
+
+function navLink(view: ScreenInspection, current: string | undefined): string {
+  const active = view.screen === current ? ' aria-current="page"' : "";
+  const dot = isBehind(view) ? "dot warn" : "dot";
+  return `<a href="${screenHref(view)}"${active}><span class="${dot}"></span>${escapeHtml(screenTitle(view))}</a>`;
+}
+
+/** 画面が一つのディレクトリにしか無ければ見出しは要らない。複数なら、ディレクトリごとに見出しを付ける。 */
 function sidebar(
   views: ScreenInspection[],
   current: string | undefined,
   language: Language,
 ): string {
-  const links = views.map((view) => {
-    const active = view.screen === current ? ' aria-current="page"' : "";
-    const dot = isBehind(view) ? "dot warn" : "dot";
-    return `<a href="${screenHref(view)}"${active}><span class="${dot}"></span>${escapeHtml(screenTitle(view))}</a>`;
+  const groups = groupScreens(views);
+  const sections = groups.map((group) => {
+    const title = groups.length > 1 ? groupName(group, language) : LABELS[language].screens;
+    const links = group.views.map((view) => navLink(view, current)).join("");
+    return `<div class="group">${escapeHtml(title)}</div>\n<nav class="nav">${links}</nav>`;
   });
   return `<aside class="side">
 <a class="brand" href="/">tidy<span>spec</span></a>
-<div class="group">${escapeHtml(LABELS[language].screens)}</div>
-<nav class="nav">${links.join("")}</nav>
+${sections.join("\n")}
 </aside>`;
 }
 
 function card(view: ScreenInspection, language: Language): string {
-  return `<a class="card" href="${screenHref(view)}"><div><strong>${escapeHtml(screenTitle(view))}</strong><span class="path">${escapeHtml(view.screen)}</span></div>${badge(view, language)}</a>`;
+  const summary = view.parsed.spec[0]?.text;
+  const desc = summary === undefined ? "" : `<span class="desc">${escapeHtml(summary)}</span>`;
+  return `<a class="card" href="${screenHref(view)}"><div><strong>${escapeHtml(screenTitle(view))}</strong>${desc}<span class="path">${escapeHtml(view.screen)}</span></div>${badge(view, language)}</a>`;
+}
+
+/** 機能一覧。画面を置かれたディレクトリごとにまとめ、それぞれの仕様の最初の一行を添える。 */
+function featureList(views: ScreenInspection[], language: Language): string {
+  const groups = groupScreens(views);
+  return groups
+    .map((group) => {
+      const heading = groups.length > 1 ? `<h2>${escapeHtml(groupName(group, language))}</h2>` : "";
+      return `${heading}<div class="cards">${group.views.map((view) => card(view, language)).join("")}</div>`;
+    })
+    .join("\n");
 }
 
 /** 画面の一覧。 */
@@ -83,7 +108,7 @@ export function renderIndex(inspection: Inspection, language: Language): string 
   const body =
     views.length === 0
       ? `<p class="lead">${escapeHtml(labels.noScreens)}</p>`
-      : `<p class="lead">${escapeHtml(labels.summary(views.length, behind))}</p>\n<div class="cards">${views.map((view) => card(view, language)).join("")}</div>`;
+      : `<p class="lead">${escapeHtml(labels.summary(views.length, behind))}</p>\n${featureList(views, language)}`;
   const main = `<main>\n<p class="eyebrow">tidyspec</p>\n<h1>${escapeHtml(labels.screens)}</h1>\n${body}\n</main>`;
   return shell({ title: labels.screens, language, current: undefined }, views, main);
 }
