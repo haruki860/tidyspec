@@ -64,7 +64,6 @@ ul.items li::marker{color:var(--muted)}
 .er-type{font:12px var(--mono);fill:var(--muted)}
 .er-mark{font:700 10px var(--mono);fill:var(--accent)}
 .er-line{fill:none;stroke:var(--muted);stroke-width:1.4}
-.er-arrow{fill:var(--muted)}
 @media (max-width:1100px){.main{grid-template-columns:minmax(0,44rem)}.toc{display:none}}
 @media (max-width:760px){
   .shell{display:block}

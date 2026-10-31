@@ -109,7 +109,40 @@ function sideX(box: Box, side: "left" | "right"): number {
   return side === "right" ? box.x + BOX_WIDTH : box.x;
 }
 
-/** 横の位置が違えば向かい合う辺から、同じ列なら同じ側の辺から出て、外へふくらむ曲線にする。 */
+const FOOT = 12;
+const SPREAD = 6;
+
+/** 辺の点 (x, y) から外向き（dir が +1 なら右、-1 なら左）に出る線の、箱の側の端につける印。 */
+function crowsFoot(x: number, y: number, dir: number): string {
+  const tip = x + dir * FOOT;
+  return [-SPREAD, 0, SPREAD]
+    .map((spread) => `<line class="er-line" x1="${tip}" y1="${y}" x2="${x}" y2="${y + spread}"/>`)
+    .join("");
+}
+
+/** 「一」の印。箱の縁から少し離れた縦棒。 */
+function oneBar(x: number, y: number, dir: number): string {
+  const at = x + dir * FOOT * 0.8;
+  return `<line class="er-line" x1="${at}" y1="${y - SPREAD}" x2="${at}" y2="${y + SPREAD}"/>`;
+}
+
+/** 外部キーの列が、その表の主キーそのものなら一対一。そうでなければ、参照先の一に対して多。 */
+function isOneToOne(table: Table, foreignKey: ForeignKey): boolean {
+  const primary = table.columns
+    .filter((column) => column.primaryKey)
+    .map((c) => c.name.toLowerCase());
+  const columns = foreignKey.columns.map((c) => c.toLowerCase());
+  return (
+    primary.length > 0 &&
+    primary.length === columns.length &&
+    columns.every((c) => primary.includes(c))
+  );
+}
+
+/**
+ * 横の位置が違えば向かい合う辺から、同じ列なら同じ側の辺から出て、外へふくらむ曲線にする。
+ * 参照する側（外部キーを持つ表）にカラスの足（多）、参照される側に縦棒（一）を付ける。矢印は使わない。
+ */
 function renderEdge(from: Box, to: Box, foreignKey: ForeignKey): string {
   const sameColumn = from.x === to.x;
   const rightward = to.x > from.x || sameColumn;
@@ -120,7 +153,11 @@ function renderEdge(from: Box, to: Box, foreignKey: ForeignKey): string {
   const bulge = sameColumn ? 56 : GAP_X / 2;
   const out = rightward ? bulge : -bulge;
   const into = sameColumn ? bulge : -out;
-  return `<path class="er-line" d="M${startX} ${startY} C${startX + out} ${startY} ${endX + into} ${endY} ${endX} ${endY}" marker-end="url(#er-arrow)"/>`;
+  const line = `<path class="er-line" d="M${startX} ${startY} C${startX + out} ${startY} ${endX + into} ${endY} ${endX} ${endY}"/>`;
+  const manySide = isOneToOne(from.table, foreignKey)
+    ? oneBar(startX, startY, Math.sign(out))
+    : crowsFoot(startX, startY, Math.sign(out));
+  return line + manySide + oneBar(endX, endY, Math.sign(into));
 }
 
 function renderEdges(boxes: Box[]): string {
@@ -141,7 +178,6 @@ export function renderEr(tables: Table[]): string {
   const width = Math.max(...boxes.map((box) => box.x + BOX_WIDTH)) + PAD;
   const height = Math.max(...boxes.map((box) => box.y + box.height)) + PAD;
   return `<svg class="er" viewBox="0 0 ${width} ${height}" width="${width}" role="img">
-<defs><marker id="er-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="er-arrow" d="M0 0 L10 5 L0 10 z"/></marker></defs>
 ${renderEdges(boxes)}${boxes.map(renderBox).join("")}
 </svg>`;
 }

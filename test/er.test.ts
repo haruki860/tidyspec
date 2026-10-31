@@ -76,9 +76,20 @@ describe("renderEr", () => {
     expect(only).not.toContain("er-line");
 
     const both = renderEr(selectTables(schema, ["sessions", "users"]).found);
-    expect(both.match(/class="er-line"/g)).toHaveLength(1);
+    expect(both).not.toContain("marker");
+    // 線が 1 本、参照する側のカラスの足が 3 本、参照される側の縦棒が 1 本。
+    expect(both.match(/class="er-line"/g)).toHaveLength(1 + 3 + 1);
     expect(both).toContain(">PK<");
     expect(both).toContain(">FK<");
+  });
+
+  it("外部キーの列が主キーそのものなら、一対一（足ではなく縦棒が両端）", () => {
+    const schema = parseSchema([
+      `create table a (id int primary key);
+       create table b (a_id int primary key references a(id));`,
+    ]);
+    const svg = renderEr(selectTables(schema, ["a", "b"]).found);
+    expect(svg.match(/class="er-line"/g)).toHaveLength(1 + 1 + 1);
   });
 
   it("名前に仕込まれたタグは無害になる", () => {
