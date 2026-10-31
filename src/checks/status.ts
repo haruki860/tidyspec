@@ -1,9 +1,10 @@
-import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Config } from "../config.js";
 import { type ParsedScreen, type Problem, parseScreen } from "../core/parse.js";
-import { git } from "../repo/git.js";
+import type { Schema } from "../core/schema.js";
+import { listProjectFiles, readRegularFile } from "../repo/files.js";
 import { checkStaleness, type ScreenReport } from "../repo/staleness.js";
+import { hasTable, loadSchema } from "./schema.js";
 
 export interface ScreenStatusReport {
   screen: string;
@@ -16,47 +17,54 @@ export interface ScreenInspection extends ScreenStatusReport {
   parsed: ParsedScreen;
 }
 
+/** 全画面の検査結果と、ER 図の元になるスキーマ（SQL が見つからなければ undefined）。 */
+export interface Inspection {
+  screens: ScreenInspection[];
+  schema: Schema | undefined;
+}
+
 /** 作業ツリーにある全ての画面について、形の問題と古さを調べる。git の中でだけ動く。 */
 export async function checkAllScreens(repo: string, config: Config): Promise<ScreenStatusReport[]> {
-  const inspections = await inspectAllScreens(repo, config);
-  return inspections.map(({ screen, problems, staleness }) => ({ screen, problems, staleness }));
+  const { screens } = await inspectProject(repo, config);
+  return screens.map(({ screen, problems, staleness }) => ({ screen, problems, staleness }));
 }
 
-/** checkAllScreens と同じ検査をして、読み取った中身も返す。 */
-export async function inspectAllScreens(repo: string, config: Config): Promise<ScreenInspection[]> {
-  // 追跡中のものと、まだ追跡していない新しい画面の両方。
-  const listed = await git(
+// スキーマがあるのに、「データ」に書いたテーブルがそこに無いのは、書き間違いか消し忘れ。
+function dataProblems(parsed: ParsedScreen, schema: Schema | undefined): Problem[] {
+  if (schema === undefined) return [];
+  return parsed.data
+    .filter((item) => !hasTable(schema, item.text))
+    .map((item) => ({ kind: "table-not-in-schema", line: item.line, detail: item.text }));
+}
+
+async function inspectScreen(
+  repo: string,
+  screen: string,
+  context: { config: Config; schema: Schema | undefined },
+): Promise<ScreenInspection | undefined> {
+  const source = await readRegularFile(path.join(repo, screen));
+  if (source === undefined) return undefined;
+  const { config, schema } = context;
+  const { screen: parsed, problems } = parseScreen(source, {
+    maxLineLength: config.maxLineLength,
+    language: config.language,
+  });
+  const staleness = await checkStaleness({
     repo,
-    ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...config.screens],
-    { globPathspecs: true },
-  );
-  if (listed.code !== 0) throw new Error(`git ls-files failed (exit ${listed.code})`);
-  const screens = [...new Set(listed.stdout.split("\0").filter((name) => name !== ""))].sort();
-
-  const reports: ScreenInspection[] = [];
-  for (const screen of screens) {
-    const source = await readRegularFile(path.join(repo, screen));
-    if (source === undefined) continue;
-    const { screen: parsed, problems } = parseScreen(source, {
-      maxLineLength: config.maxLineLength,
-      language: config.language,
-    });
-    const staleness = await checkStaleness({
-      repo,
-      screen,
-      code: parsed.code.map((entry) => entry.path),
-    });
-    reports.push({ screen, parsed, problems, staleness });
-  }
-  return reports;
+    screen,
+    code: parsed.code.map((entry) => entry.path),
+  });
+  return { screen, parsed, problems: [...problems, ...dataProblems(parsed, schema)], staleness };
 }
 
-// シンボリックリンクは読まない。repo の外のファイルの中身を、画面として表示させないため。
-async function readRegularFile(file: string): Promise<string | undefined> {
-  try {
-    if (!(await lstat(file)).isFile()) return undefined;
-    return await readFile(file, "utf8");
-  } catch {
-    return undefined;
+/** checkAllScreens と同じ検査をして、読み取った中身とスキーマも返す。 */
+export async function inspectProject(repo: string, config: Config): Promise<Inspection> {
+  const schema = await loadSchema(repo, config);
+  const screens: ScreenInspection[] = [];
+  // 追跡中のものと、まだ追跡していない新しい画面の両方。
+  for (const screen of await listProjectFiles(repo, config.screens)) {
+    const inspected = await inspectScreen(repo, screen, { config, schema });
+    if (inspected) screens.push(inspected);
   }
+  return { screens, schema };
 }
