@@ -8,8 +8,9 @@ import type { Prompter } from "../src/cli/prompter.js";
 import { DEFAULT_CONFIG } from "../src/config.js";
 import { HOOK_SCRIPT } from "../src/setup/hookfile.js";
 import {
-  applyInit,
+  executeInit,
   type InitAnswers,
+  planInit,
   screensDirFromConfig,
   validateScreensDir,
 } from "../src/setup/init.js";
@@ -166,10 +167,26 @@ describe("validateScreensDir / screensDirFromConfig", () => {
   });
 });
 
+// 計画して、実行する。計画だけで止めるのが previewInit。
+async function previewInit(root: string, answers: InitAnswers) {
+  const planned = await planInit(root, answers);
+  if (!planned.ok) return planned;
+  const { steps, notes } = planned.plan;
+  return { ok: true as const, steps, notes };
+}
+
+async function applyInit(root: string, answers: InitAnswers) {
+  const planned = await planInit(root, answers);
+  if (!planned.ok) return planned;
+  await executeInit(planned.plan);
+  const { steps, notes } = planned.plan;
+  return { ok: true as const, steps, notes };
+}
+
 describe("applyInit", () => {
   it("新しいリポジトリに、設定・指示文・フックを作る。フックは実行できる", async () => {
     const repo = newRepo();
-    const result = await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    const result = await applyInit(repo.dir, ANSWERS);
     expect(result).toEqual({
       ok: true,
       steps: [
@@ -190,22 +207,22 @@ describe("applyInit", () => {
 
   it("dryRun は同じ結果を返し、何も書かない", async () => {
     const repo = newRepo();
-    const dry = await applyInit(repo.dir, ANSWERS, { dryRun: true });
+    const dry = await previewInit(repo.dir, ANSWERS);
     expect(
       has(repo, "tidyspec.json") || has(repo, "AGENTS.md") || has(repo, ".git/hooks/pre-commit"),
     ).toBe(false);
-    expect(await applyInit(repo.dir, ANSWERS, { dryRun: false })).toEqual(dry);
+    expect(await applyInit(repo.dir, ANSWERS)).toEqual(dry);
   });
 
   it("二回目は全て unchanged で、ファイルは変わらない", async () => {
     const repo = newRepo();
-    await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    await applyInit(repo.dir, ANSWERS);
     const before = [
       read(repo, "tidyspec.json"),
       read(repo, "AGENTS.md"),
       read(repo, ".git/hooks/pre-commit"),
     ];
-    const again = await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    const again = await applyInit(repo.dir, ANSWERS);
     expect(again).toMatchObject({
       ok: true,
       steps: [{ result: "unchanged" }, { result: "unchanged" }, { result: "unchanged" }],
@@ -220,11 +237,7 @@ describe("applyInit", () => {
   it("既存の設定の他のキーを残し、言語と置き場だけ更新する", async () => {
     const repo = newRepo();
     repo.write("tidyspec.json", '{"maxLineLength":50,"implementation":["lib/**"]}');
-    await applyInit(
-      repo.dir,
-      { ...ANSWERS, language: "ja", screensDir: "specs" },
-      { dryRun: false },
-    );
+    await applyInit(repo.dir, { ...ANSWERS, language: "ja", screensDir: "specs" });
     expect(JSON.parse(read(repo, "tidyspec.json"))).toEqual({
       maxLineLength: 50,
       implementation: ["lib/**"],
@@ -237,19 +250,19 @@ describe("applyInit", () => {
   it("壊れた設定は、上書きせずにエラー", async () => {
     const repo = newRepo();
     repo.write("tidyspec.json", '{"screen":["x"]}');
-    expect(await applyInit(repo.dir, ANSWERS, { dryRun: false })).toMatchObject({ ok: false });
+    expect(await applyInit(repo.dir, ANSWERS)).toMatchObject({ ok: false });
     expect(read(repo, "tidyspec.json")).toBe('{"screen":["x"]}');
   });
 
   it("AGENTS.md の既存の文章を残す。目印が壊れていたら、どれも書かずにエラー", async () => {
     const repo = newRepo();
     repo.write("AGENTS.md", "# Mine\n\nKeep this.\n");
-    await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    await applyInit(repo.dir, ANSWERS);
     expect(read(repo, "AGENTS.md").startsWith("# Mine\n\nKeep this.\n\n")).toBe(true);
 
     const broken = newRepo();
     broken.write("AGENTS.md", `${BLOCK_START}\nhalf\n`);
-    const result = await applyInit(broken.dir, ANSWERS, { dryRun: false });
+    const result = await applyInit(broken.dir, ANSWERS);
     expect(result).toMatchObject({ ok: false });
     expect(has(broken, "tidyspec.json")).toBe(false);
   });
@@ -258,7 +271,7 @@ describe("applyInit", () => {
     const repo = newRepo();
     mkdirSync(path.join(repo.dir, ".git/hooks"), { recursive: true });
     writeFileSync(path.join(repo.dir, ".git/hooks/pre-commit"), "#!/bin/sh\necho mine\n");
-    const result = await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    const result = await applyInit(repo.dir, ANSWERS);
     expect(result).toMatchObject({
       ok: true,
       steps: [{}, {}, { file: ".git/hooks/pre-commit", result: "skipped" }],
@@ -270,7 +283,7 @@ describe("applyInit", () => {
   it("core.hooksPath があるときは（husky など）フックを書かず、案内する", async () => {
     const repo = newRepo();
     repo.git("config", "core.hooksPath", ".husky");
-    const result = await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    const result = await applyInit(repo.dir, ANSWERS);
     expect(result.ok && result.notes[0]).toContain('core.hooksPath is set to ".husky"');
     expect(has(repo, ".git/hooks/pre-commit")).toBe(false);
   });
@@ -282,7 +295,7 @@ describe("applyInit", () => {
       path.join(repo.dir, ".git/hooks/pre-commit"),
       "#!/bin/sh\n# tidyspec:start old\nexit 0\n# tidyspec:end\n",
     );
-    const result = await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    const result = await applyInit(repo.dir, ANSWERS);
     expect(result).toMatchObject({ ok: true, steps: [{}, {}, { result: "updated" }] });
     expect(read(repo, ".git/hooks/pre-commit")).toBe(HOOK_SCRIPT);
   });
@@ -290,19 +303,19 @@ describe("applyInit", () => {
   it("CLAUDE.md が AGENTS.md に触れていなければ、案内する", async () => {
     const repo = newRepo();
     repo.write("CLAUDE.md", "# Claude\n");
-    const result = await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    const result = await applyInit(repo.dir, ANSWERS);
     expect(result.ok && result.notes[0]).toContain("@AGENTS.md");
     repo.write("CLAUDE.md", "@AGENTS.md\n");
-    expect(await applyInit(repo.dir, ANSWERS, { dryRun: false })).toMatchObject({ notes: [] });
+    expect(await applyInit(repo.dir, ANSWERS)).toMatchObject({ notes: [] });
   });
 
   it("--no-hook と --no-instructions 相当は skipped にする", async () => {
     const repo = newRepo();
-    const result = await applyInit(
-      repo.dir,
-      { ...ANSWERS, installHook: false, writeInstructions: false },
-      { dryRun: false },
-    );
+    const result = await applyInit(repo.dir, {
+      ...ANSWERS,
+      installHook: false,
+      writeInstructions: false,
+    });
     expect(result).toMatchObject({
       steps: [{ result: "created" }, { result: "skipped" }, { result: "skipped" }],
     });
@@ -319,7 +332,7 @@ describe("入れたフックが、実際のコミットで効く", () => {
     repo.write("src/a.ts", "1");
     repo.write("docs/screens/login.md", SCREEN("- Lock: src/a.ts"));
     repo.commit("screens");
-    await applyInit(repo.dir, ANSWERS, { dryRun: false });
+    await applyInit(repo.dir, ANSWERS);
     return repo;
   }
 
