@@ -12,6 +12,15 @@ Keep per-screen specs short, in Markdown, written by your coding agent. Preview 
 
 Read [SPEC.md](SPEC.md) for the full design and [docs/staleness-cases.md](docs/staleness-cases.md) for how staleness is decided. [examples/](examples) shows what a screen file looks like.
 
+## Usage (not published yet)
+
+```sh
+tidyspec check    # inspect what is staged; for a commit hook
+tidyspec status   # are any screens behind the code they point to?
+```
+
+Both take `--json`. Exit codes: 0 ok, 1 problems found, 2 usage, config or git failure. Settings live in an optional `tidyspec.json` (`screens`, `implementation`, `maxLineLength`).
+
 ## Development
 
 Requires Node.js 22 or later.
@@ -20,6 +29,7 @@ Requires Node.js 22 or later.
 npm ci
 npm run typecheck
 npm test
+npm run build
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Repository settings to apply on GitHub are in [docs/github-setup.md](docs/github-setup.md).
