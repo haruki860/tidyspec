@@ -7,3 +7,7 @@ export * from "./render.js";
 export * from "./cli.js";
 export * from "./language.js";
 export * from "./messages.js";
+export * from "./instructions.js";
+export * from "./hookfile.js";
+export * from "./init.js";
+export * from "./prompter.js";

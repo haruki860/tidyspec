@@ -2,22 +2,37 @@ import { parseArgs } from "node:util";
 import { loadConfig } from "./config.js";
 import { git } from "./git.js";
 import { checkCommit } from "./hook.js";
+import { isLanguage } from "./language.js";
+import { runInit } from "./initCommand.js";
+import type { Prompter } from "./prompter.js";
 import { renderCheck, renderStatus, statusExitCode } from "./render.js";
 import { checkAllScreens } from "./status.js";
 
 export interface Io {
   out(text: string): void;
   err(text: string): void;
+  /** 端末で質問できるときだけ渡される */
+  prompt?: Prompter;
 }
 
 const USAGE = `Usage: tidyspec <command> [options]
 
 Commands:
+  init     Set up tidyspec.json, the agent instructions in AGENTS.md and a pre-commit hook (asks questions)
   check    Inspect what is staged for commit (for a commit hook)
   status   Check every screen for format problems and for code newer than the spec
 
 Options:
   --json     Print the result as JSON
+
+Options for init (without a terminal, pass --yes):
+  --yes               Do not ask; use the options below or the defaults
+  --lang <en|ja>      Language of headings and messages
+  --screens-dir <d>   Directory for the screen files (default: docs/screens)
+  --no-hook           Do not install the pre-commit hook
+  --no-instructions   Do not write the agent instructions
+
+Other options:
   --strict   For status, also fail when staleness cannot be determined (e.g. a shallow clone)
   -h, --help Show this message
 
@@ -35,6 +50,11 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
         json: { type: "boolean" },
         strict: { type: "boolean" },
         help: { type: "boolean", short: "h" },
+        yes: { type: "boolean" },
+        lang: { type: "string" },
+        "screens-dir": { type: "string" },
+        "no-hook": { type: "boolean" },
+        "no-instructions": { type: "boolean" },
       },
     });
   } catch (error) {
@@ -48,7 +68,7 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
     io.out(USAGE);
     return 0;
   }
-  if ((command !== "check" && command !== "status") || rest.length > 0) {
+  if ((command !== "init" && command !== "check" && command !== "status") || rest.length > 0) {
     io.err(USAGE);
     return 2;
   }
@@ -59,6 +79,24 @@ export async function run(argv: string[], io: Io, cwd: string): Promise<number> 
     if (top.code !== 0 || root === "") {
       io.err("tidyspec: run this inside a git repository");
       return 2;
+    }
+    if (command === "init") {
+      const lang = parsed.values.lang;
+      if (lang !== undefined && !isLanguage(lang)) {
+        io.err(`tidyspec: --lang must be en or ja, not ${JSON.stringify(lang)}`);
+        return 2;
+      }
+      return await runInit(
+        root,
+        {
+          yes: parsed.values.yes ?? false,
+          language: lang === undefined ? undefined : isLanguage(lang) ? lang : undefined,
+          screensDir: parsed.values["screens-dir"],
+          noHook: parsed.values["no-hook"] ?? false,
+          noInstructions: parsed.values["no-instructions"] ?? false,
+        },
+        io,
+      );
     }
     const loaded = await loadConfig(root);
     if (!loaded.ok) {
