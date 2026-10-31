@@ -23,6 +23,7 @@ a{color:inherit;text-decoration:none}
 .brand{display:block;font:600 1.05rem var(--mono);letter-spacing:-.01em;padding:0 .5rem 1.25rem}
 .brand span{color:var(--accent)}
 .group{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 .5rem .4rem}
+.nav+.group{margin-top:1.1rem}
 .nav a{display:flex;align-items:center;gap:.6rem;padding:.4rem .5rem;border-radius:8px;font-size:.92rem;color:var(--muted)}
 .nav a:hover{background:var(--code-bg);color:var(--text)}
 .nav a[aria-current=page]{background:var(--accent-bg);color:var(--accent);font-weight:600}
@@ -52,6 +53,8 @@ ul.items li::marker{color:var(--muted)}
 .card{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border:1px solid var(--line);border-radius:12px}
 .card:hover{border-color:var(--accent)}
 .card strong{display:block;font-size:1.02rem}
+.card .desc{display:block;color:var(--muted);font-size:.9rem;margin:.1rem 0 .3rem}
+.main h2+.cards{margin-top:.5rem}
 .toc{position:sticky;top:3rem;align-self:start;font-size:.85rem}
 .toc a{display:block;padding:.25rem 0 .25rem .9rem;color:var(--muted);border-left:1px solid var(--line)}
 .toc a:hover{color:var(--text);border-left-color:var(--accent)}
