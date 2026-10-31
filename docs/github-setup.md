@@ -1,25 +1,27 @@
 # GitHub settings checklist
 
-Do these after the repository is created and public. Branch protection and rulesets are available on public repositories without a paid plan.
+Applied on 2026-10-31 (the checked items). Do these after the repository is created and public. Branch protection and rulesets are available on public repositories without a paid plan.
 
 ## Settings → General
 
-- [ ] Pull Requests: allow squash merging only. Default commit message: "Pull request title".
-- [ ] Automatically delete head branches
+- [x] Pull Requests: allow squash merging only. Default commit message: "Pull request title".
+- [x] Automatically delete head branches
 
 ## Rules (Settings → Rules → Rulesets) for `main`
 
-- [ ] Require a pull request before merging
-- [ ] Require status checks to pass: `check (22)`, `check (24)`
-- [ ] Block force pushes
-- [ ] Restrict deletions
-- [ ] Require linear history
+Ruleset `protect main`. No bypass actors: the owner also goes through a pull request. Verified by a rejected direct push.
+
+- [x] Require a pull request before merging
+- [x] Require status checks to pass: `check (22)`, `check (24)`
+- [x] Block force pushes
+- [x] Restrict deletions
+- [x] Require linear history
 
 ## Settings → Code security
 
-- [ ] Private vulnerability reporting: enable (SECURITY.md depends on it)
-- [ ] Dependabot alerts and security updates: enable
-- [ ] Secret scanning and push protection: enable
+- [x] Private vulnerability reporting: enable (SECURITY.md depends on it)
+- [x] Dependabot alerts and security updates: enable
+- [x] Secret scanning and push protection: enable
 
 ## Account
 
