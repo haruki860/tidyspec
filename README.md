@@ -18,7 +18,10 @@ Read [SPEC.md](SPEC.md) for the full design and [docs/staleness-cases.md](docs/s
 tidyspec init     # asks a few questions: language, screens directory, hook, agent instructions
 tidyspec check    # inspect what is staged; for a commit hook
 tidyspec status   # are any screens behind the code they point to?
+tidyspec preview  # read the screens in the browser (a local, read-only page)
 ```
+
+`preview` serves a read-only page on `127.0.0.1` only (default port 4321, `--port`), rereads the files on every request, and stops with Ctrl-C. It shows each screen's four sections and marks code that is newer than the spec. Everything it shows is escaped, and it only opens files that the status check lists as screens.
 
 The instructions go in `AGENTS.md`, which Claude Code, Codex and Cursor all read. An older Claude Code that only reads `CLAUDE.md` needs the line `@AGENTS.md` added to it.
 

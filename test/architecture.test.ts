@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 
 /**
  * 依存の向きを守らせる。構成は docs/decisions/001-module-layout.md。
- * 下の層は上の層を知らない: core ← repo ← checks ← setup ← cli
+ * 下の層は上の層を知らない: core ← repo ← checks ← preview ← setup ← cli
  */
-const LAYERS = ["core", "repo", "checks", "setup", "cli"] as const;
+const LAYERS = ["core", "repo", "checks", "preview", "setup", "cli"] as const;
 type Layer = (typeof LAYERS)[number];
 
 // 層はディレクトリで決まる。src 直下の config.ts は、どの層からも読める設定なので core 扱い。

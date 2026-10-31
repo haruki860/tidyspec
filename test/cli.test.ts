@@ -124,7 +124,7 @@ describe("tidyspec status", () => {
 describe("使い方の誤りは 2", () => {
   it.each([
     ["コマンドなし", []],
-    ["知らないコマンド", ["preview"]],
+    ["知らないコマンド", ["publish"]],
     ["余計な引数", ["check", "extra"]],
     ["知らないオプション", ["check", "--nope"]],
   ])("%s", async (_name, args) => {
