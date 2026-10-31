@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { inspectAllScreens } from "../checks/status.js";
+import { inspectProject } from "../checks/status.js";
 import type { Config } from "../config.js";
 import { renderIndex, renderNotFound, renderScreenPage } from "./html.js";
 
@@ -45,14 +45,15 @@ function hostIsOurs(request: IncomingMessage, port: number): boolean {
 async function handle(request: IncomingMessage, response: ServerResponse, options: PreviewOptions) {
   const { language } = options.config;
   const url = new URL(request.url ?? "/", "http://localhost");
-  const views = await inspectAllScreens(options.root, options.config);
-  if (url.pathname === "/") return send(response, 200, renderIndex(views, language));
+  const inspection = await inspectProject(options.root, options.config);
+  const views = inspection.screens;
+  if (url.pathname === "/") return send(response, 200, renderIndex(inspection, language));
   if (url.pathname === "/screen") {
     // 渡されたパスをファイルとして開かない。検査済みの画面の一覧から、同じ名前のものを探すだけ。
     const view = views.find((candidate) => candidate.screen === url.searchParams.get("file"));
-    if (view) return send(response, 200, renderScreenPage(view, views, language));
+    if (view) return send(response, 200, renderScreenPage(view, inspection, language));
   }
-  return send(response, 404, renderNotFound(views, language));
+  return send(response, 404, renderNotFound(inspection, language));
 }
 
 /** 自分のマシンからだけ見られる場所で待ち受ける。 */

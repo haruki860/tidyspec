@@ -10,20 +10,29 @@ export interface Config {
   /** 実装ファイル。「未登録」を知らせるためだけに使い、止めるかどうかには関わらない */
   implementation: string[];
   maxLineLength?: number;
+  /** ER 図の元にする SQL（マイグレーション）。git の glob 形式。ファイル名の順に、古い順として読む */
+  schema: string[];
   /** 画面ファイルの見出しと、指摘の文言の言語 */
   language: Language;
 }
 
-// 画面の置き場と実装のパターンは SPEC に無いので、仮の既定値。
+// 画面の置き場、実装、スキーマのパターンは SPEC に無いので、仮の既定値。
+// スキーマは Supabase、drizzle、Prisma のマイグレーションの置き場から探す。
 export const DEFAULT_CONFIG: Config = {
   screens: ["docs/screens/**/*.md"],
   implementation: ["src/**", "app/**"],
+  schema: [
+    "supabase/migrations/**/*.sql",
+    "drizzle/**/*.sql",
+    "prisma/migrations/**/*.sql",
+    "db/**/*.sql",
+  ],
   language: DEFAULT_LANGUAGE,
 };
 
 export type ConfigResult = { ok: true; config: Config } | { ok: false; error: string };
 
-const KNOWN_KEYS = ["screens", "implementation", "maxLineLength", "language"];
+const KNOWN_KEYS = ["screens", "implementation", "schema", "maxLineLength", "language"];
 
 function isStringArray(value: unknown): value is string[] {
   return (
@@ -39,8 +48,8 @@ function invalid(error: string): { ok: false; error: string } {
 
 // noPropertyAccessFromIndexSignature があるので、キーを分割代入で取り出す。
 function destructure(record: Record<string, unknown>) {
-  const { screens, implementation, maxLineLength, language } = record;
-  return { screens, implementation, maxLineLength, language };
+  const { screens, implementation, schema, maxLineLength, language } = record;
+  return { screens, implementation, schema, maxLineLength, language };
 }
 
 function jsonObject(text: string): Field<Record<string, unknown>> {
@@ -69,6 +78,12 @@ function screensField(value: unknown): Field<string[]> {
 function implementationField(value: unknown): Field<string[]> {
   if (value === undefined) return { ok: true, value: DEFAULT_CONFIG.implementation };
   if (!isStringArray(value)) return invalid("implementation must be an array of strings");
+  return { ok: true, value };
+}
+
+function schemaField(value: unknown): Field<string[]> {
+  if (value === undefined) return { ok: true, value: DEFAULT_CONFIG.schema };
+  if (!isStringArray(value)) return invalid("schema must be an array of strings");
   return { ok: true, value };
 }
 
@@ -103,6 +118,8 @@ export function parseConfig(text: string): ConfigResult {
   if (!screens.ok) return screens;
   const implementation = implementationField(fields.implementation);
   if (!implementation.ok) return implementation;
+  const schema = schemaField(fields.schema);
+  if (!schema.ok) return schema;
   const maxLineLength = maxLineLengthField(fields.maxLineLength);
   if (!maxLineLength.ok) return maxLineLength;
   const language = languageField(fields.language);
@@ -111,6 +128,7 @@ export function parseConfig(text: string): ConfigResult {
   const config: Config = {
     screens: screens.value,
     implementation: implementation.value,
+    schema: schema.value,
     language: language.value,
     ...(maxLineLength.value === undefined ? {} : { maxLineLength: maxLineLength.value }),
   };

@@ -41,7 +41,8 @@ export type ProblemKind =
   | "unexpected-heading"
   | "text-outside-section"
   | "not-a-bullet"
-  | "nested-bullet";
+  | "nested-bullet"
+  | "table-not-in-schema";
 
 export interface Problem {
   kind: ProblemKind;
@@ -76,6 +77,7 @@ const SEVERITY: Record<ProblemKind, "error" | "warning"> = {
   "text-outside-section": "warning",
   "not-a-bullet": "warning",
   "nested-bullet": "warning",
+  "table-not-in-schema": "error",
 };
 
 export function severityOf(problem: Problem): "error" | "warning" {

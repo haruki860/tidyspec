@@ -1,22 +1,12 @@
-import type { ScreenInspection } from "../checks/status.js";
+import type { Inspection, ScreenInspection } from "../checks/status.js";
 import { HEADINGS, type Language, SECTION_KEYS, type SectionKey } from "../core/language.js";
 import { MESSAGES, type Messages } from "../core/messages.js";
 import { type Item, type Problem, severityOf } from "../core/parse.js";
+import type { Schema } from "../core/schema.js";
+import { renderEr, selectTables } from "./er.js";
+import { escapeHtml } from "./escape.js";
 import { LABELS } from "./labels.js";
 import { STYLE } from "./style.js";
-
-/**
- * 画面の中身とパスは信用できない入力。HTML に入れる文字列は、必ずこれを通す。
- * テンプレートの外で文字列を連結して HTML を作らない。
- */
-export function escapeHtml(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 /** 全ページ共通の枠。サイドバーに全画面の一覧を置き、いまの画面に印を付ける。 */
 function shell(
@@ -86,7 +76,8 @@ function card(view: ScreenInspection, language: Language): string {
 }
 
 /** 画面の一覧。 */
-export function renderIndex(views: ScreenInspection[], language: Language): string {
+export function renderIndex(inspection: Inspection, language: Language): string {
+  const views = inspection.screens;
   const labels = LABELS[language];
   const behind = views.filter(isBehind).length;
   const body =
@@ -111,9 +102,38 @@ function codeItems(view: ScreenInspection, messages: Messages): string {
   return `<ul class="files">${rows.join("")}</ul>`;
 }
 
-function section(view: ScreenInspection, key: SectionKey, language: Language): string {
+function dataItems(view: ScreenInspection, schema: Schema | undefined, language: Language): string {
+  const missing = new Set(schema === undefined ? [] : selectTables(schema, namesOf(view)).missing);
+  const labels = LABELS[language];
+  const rows = view.parsed.data.map((item) => {
+    const mark = missing.has(item.text)
+      ? `<span class="badge warn">${escapeHtml(labels.notInSchema)}</span>`
+      : "";
+    return `<li>${escapeHtml(item.text)} ${mark}</li>`;
+  });
+  return `<ul class="items">${rows.join("")}</ul>`;
+}
+
+function namesOf(view: ScreenInspection): string[] {
+  return view.parsed.data.map((item) => item.text);
+}
+
+/** 「データ」の下の ER 図。スキーマが無い、または一つも見つからなければ出さない（名前の一覧だけ）。 */
+function erFigure(view: ScreenInspection, schema: Schema | undefined): string {
+  if (schema === undefined) return "";
+  const svg = renderEr(selectTables(schema, namesOf(view)).found);
+  return svg === "" ? "" : `<div class="er-wrap">${svg}</div>`;
+}
+
+function section(
+  view: ScreenInspection,
+  key: SectionKey,
+  context: { language: Language; schema: Schema | undefined },
+): string {
+  const { language, schema } = context;
   const heading = `<h2 id="${key}">${escapeHtml(HEADINGS[language][key])}</h2>`;
   if (key === "code") return heading + codeItems(view, MESSAGES[language]);
+  if (key === "data") return heading + dataItems(view, schema, language) + erFigure(view, schema);
   return heading + items(view.parsed[key]);
 }
 
@@ -140,7 +160,7 @@ function toc(language: Language): string {
 /** 一つの画面。 */
 export function renderScreenPage(
   view: ScreenInspection,
-  views: ScreenInspection[],
+  inspection: Inspection,
   language: Language,
 ): string {
   const main = `<main>
@@ -148,14 +168,18 @@ export function renderScreenPage(
 <h1>${escapeHtml(screenTitle(view))}</h1>
 <div class="meta">${badge(view, language)}<span class="path">${escapeHtml(view.screen)}</span></div>
 ${problemList(view.problems, language)}
-${SECTION_KEYS.map((key) => section(view, key, language)).join("\n")}
+${SECTION_KEYS.map((key) => section(view, key, { language, schema: inspection.schema })).join("\n")}
 </main>
 ${toc(language)}`;
-  return shell({ title: screenTitle(view), language, current: view.screen }, views, main);
+  return shell(
+    { title: screenTitle(view), language, current: view.screen },
+    inspection.screens,
+    main,
+  );
 }
 
-export function renderNotFound(views: ScreenInspection[], language: Language): string {
+export function renderNotFound(inspection: Inspection, language: Language): string {
   const labels = LABELS[language];
   const main = `<main><p class="eyebrow">404</p><h1>404</h1><p class="lead"><a href="/">${escapeHtml(labels.back)}</a></p></main>`;
-  return shell({ title: "404", language, current: undefined }, views, main);
+  return shell({ title: "404", language, current: undefined }, inspection.screens, main);
 }
