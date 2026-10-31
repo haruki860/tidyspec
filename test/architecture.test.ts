@@ -9,46 +9,30 @@ import { describe, expect, it } from "vitest";
 const LAYERS = ["core", "repo", "checks", "setup", "cli"] as const;
 type Layer = (typeof LAYERS)[number];
 
-// 今はまだ平らな src/ なので、ファイル名から層を決める。ディレクトリに分けたら、ディレクトリから決める。
-const LAYER_OF: Record<string, Layer> = {
-  language: "core",
-  messages: "core",
-  parse: "core",
-  config: "core",
-  git: "repo",
-  staleness: "repo",
-  paths: "repo",
-  hook: "checks",
-  io: "cli",
-  status: "checks",
-  render: "checks",
-  init: "setup",
-  instructions: "setup",
-  hookfile: "setup",
-  cli: "cli",
-  initCommand: "cli",
-  prompter: "cli",
-  bin: "cli",
-  index: "cli",
-};
+// 層はディレクトリで決まる。src 直下の config.ts は、どの層からも読める設定なので core 扱い。
+// index.ts は公開 API で、CLI のみ化（決定 001）で消す。
+const ROOT_FILES: Record<string, Layer> = { config: "core", index: "cli" };
 
 // 構成を直すたびに縮める。新しい違反を足してはいけないし、直したら消さなければならない。
-const KNOWN_LAYER_VIOLATIONS = ["messages -> staleness (core imports repo)"];
+const KNOWN_LAYER_VIOLATIONS: string[] = [];
 const KNOWN_CYCLES: string[] = [];
 
 const SRC = path.join(import.meta.dirname, "..", "src");
-const IMPORT = /from "\.\/([A-Za-z]+)\.js"/g;
+const IMPORT = /from "(\.[^"]*)\.js"/g;
 
+// "core/parse" のように、src からの相対パス（拡張子なし）で呼ぶ。
 function modules(): string[] {
-  return readdirSync(SRC)
+  return readdirSync(SRC, { recursive: true, encoding: "utf8" })
     .filter((file) => file.endsWith(".ts"))
-    .map((file) => path.basename(file, ".ts"))
+    .map((file) => file.slice(0, -".ts".length).split(path.sep).join("/"))
     .sort();
 }
 
 function importsOf(module: string): string[] {
   const source = readFileSync(path.join(SRC, `${module}.ts`), "utf8");
-  const found = [...source.matchAll(IMPORT)].map((match) => match[1] ?? "");
+  const found = [...source.matchAll(IMPORT)].map((match) =>
+    path.posix.join(path.posix.dirname(module), match[1] ?? ""),
+  );
   return [...new Set(found)].sort();
 }
 
@@ -56,8 +40,14 @@ function graph(): Map<string, string[]> {
   return new Map(modules().map((module) => [module, importsOf(module)]));
 }
 
+function layerOf(module: string): Layer | undefined {
+  const [first = "", rest] = module.split("/");
+  if (rest === undefined) return ROOT_FILES[first];
+  return LAYERS.find((layer) => layer === first);
+}
+
 function layerIndex(module: string): number {
-  const layer = LAYER_OF[module];
+  const layer = layerOf(module);
   return layer === undefined ? -1 : LAYERS.indexOf(layer);
 }
 
@@ -66,7 +56,7 @@ function layerViolations(): string[] {
   for (const [module, imports] of graph()) {
     for (const imported of imports) {
       if (layerIndex(imported) > layerIndex(module)) {
-        found.push(`${module} -> ${imported} (${LAYER_OF[module]} imports ${LAYER_OF[imported]})`);
+        found.push(`${module} -> ${imported} (${layerOf(module)} imports ${layerOf(imported)})`);
       }
     }
   }
@@ -98,7 +88,7 @@ function normalizeCycle(cycle: string): string {
 
 describe("architecture", () => {
   it("every module is assigned to a layer", () => {
-    const unassigned = modules().filter((module) => LAYER_OF[module] === undefined);
+    const unassigned = modules().filter((module) => layerOf(module) === undefined);
     expect(unassigned).toEqual([]);
   });
 

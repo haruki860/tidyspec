@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { repoRelativePath } from "../src/paths.js";
+import { repoRelativePath } from "../src/repo/paths.js";
 
 describe("repoRelativePath", () => {
   it.each([

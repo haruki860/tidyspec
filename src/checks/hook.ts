@@ -1,7 +1,7 @@
-import { type Config, DEFAULT_CONFIG } from "./config.js";
-import { git } from "./git.js";
-import { type CodeEntry, type Problem, parseScreen, severityOf } from "./parse.js";
-import { repoRelativePath } from "./paths.js";
+import { type Config, DEFAULT_CONFIG } from "../config.js";
+import { type CodeEntry, type Problem, parseScreen, severityOf } from "../core/parse.js";
+import { git } from "../repo/git.js";
+import { repoRelativePath } from "../repo/paths.js";
 
 export type Violation =
   | { kind: "screen-problem"; screen: string; problem: Problem }

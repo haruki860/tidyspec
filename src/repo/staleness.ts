@@ -1,15 +1,8 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import type { FileState } from "../core/fileState.js";
 import { git } from "./git.js";
 import { repoRelativePath } from "./paths.js";
-
-export type FileState =
-  | "aligned"
-  | "stale"
-  | "working-changes"
-  | "untracked"
-  | "missing"
-  | "unchecked";
 
 export type ScreenStatus =
   | "aligned"

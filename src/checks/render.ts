@@ -1,8 +1,8 @@
+import { DEFAULT_LANGUAGE, type Language } from "../core/language.js";
+import { MESSAGES, type Messages } from "../core/messages.js";
+import type { Problem } from "../core/parse.js";
+import { severityOf } from "../core/parse.js";
 import type { HookReport, Violation } from "./hook.js";
-import { DEFAULT_LANGUAGE, type Language } from "./language.js";
-import { MESSAGES, type Messages } from "./messages.js";
-import type { Problem } from "./parse.js";
-import { severityOf } from "./parse.js";
 import type { ScreenStatusReport } from "./status.js";
 
 /**

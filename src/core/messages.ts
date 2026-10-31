@@ -1,6 +1,6 @@
+import type { FileState } from "./fileState.js";
 import type { Language } from "./language.js";
 import type { ProblemKind } from "./parse.js";
-import type { FileState } from "./staleness.js";
 
 /**
  * 画面ファイルについての指摘の文言。エージェントが読むので、画面ファイルと同じ言語にする。

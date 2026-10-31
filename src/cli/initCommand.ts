@@ -1,13 +1,13 @@
-import { loadConfig } from "./config.js";
+import { loadConfig } from "../config.js";
+import { HEADINGS, type Language } from "../core/language.js";
 import {
   applyInit,
   DEFAULT_SCREENS_DIR,
   type InitStep,
   screensDirFromConfig,
   validateScreensDir,
-} from "./init.js";
+} from "../setup/init.js";
 import type { Io } from "./io.js";
-import { HEADINGS, type Language } from "./language.js";
 
 export interface InitFlags {
   yes: boolean;

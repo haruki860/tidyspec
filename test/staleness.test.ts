@@ -3,7 +3,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { checkStaleness } from "../src/staleness.js";
+import { checkStaleness } from "../src/repo/staleness.js";
 import { TestRepo } from "./helpers/repo.js";
 
 const made: TestRepo[] = [];

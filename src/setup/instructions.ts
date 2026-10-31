@@ -1,5 +1,5 @@
-import { HEADINGS, type Language } from "./language.js";
-import { DEFAULT_MAX_LINE_LENGTH } from "./parse.js";
+import { HEADINGS, type Language } from "../core/language.js";
+import { DEFAULT_MAX_LINE_LENGTH } from "../core/parse.js";
 
 export const BLOCK_START = "<!-- tidyspec:start -->";
 export const BLOCK_END = "<!-- tidyspec:end -->";

@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { run } from "../src/cli.js";
+import { run } from "../src/cli/cli.js";
 import { TestRepo } from "./helpers/repo.js";
 
 const made: TestRepo[] = [];
