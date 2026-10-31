@@ -1,0 +1,21 @@
+name: Bug report
+description: Something behaves differently from SPEC.md
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A small git history and screen Markdown that shows it, if you can.
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: tidyspec version, Node.js version, OS
