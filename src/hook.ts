@@ -101,9 +101,11 @@ function normalize(file: string): string | undefined {
   return normalized;
 }
 
+// git が失敗したのに「変更なし」として通すと、検査したことにならない。失敗は呼び出し側に伝える。
 async function listPaths(repo: string, args: string[], globPathspecs = false): Promise<string[]> {
   const result = await git(repo, args, { globPathspecs });
-  return result.code === 0 ? result.stdout.split("\0").filter((name) => name !== "") : [];
+  if (result.code !== 0) throw new Error(`git ${args[0] ?? ""} failed (exit ${result.code})`);
+  return result.stdout.split("\0").filter((name) => name !== "");
 }
 
 // ファイル名を ref の記法（:path）に混ぜないよう、いったん blob のハッシュを引いてから読む。

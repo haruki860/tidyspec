@@ -210,4 +210,10 @@ describe("checkCommit", () => {
     const report = await checkCommit(repo.dir, { screens: ["specs/*.md"], implementation: [] });
     expect(report.violations).toEqual([{ kind: "spec-not-updated", file: "src/auth/lock.ts", screens: ["specs/login.md"] }]);
   });
+
+  it("git が失敗したら、通さずに例外にする", async () => {
+    const repo = baseRepo();
+    await expect(checkCommit(repo.dir, { screens: ["../outside/*.md"], implementation: [] })).rejects.toThrow("git ls-files failed");
+    await expect(checkCommit(`${repo.dir}/not-a-repo`)).rejects.toThrow("failed");
+  });
 });

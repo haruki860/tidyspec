@@ -120,8 +120,10 @@ async function exists(repo: string, file: string): Promise<boolean> {
   }
 }
 
+// 失敗を「変更なし」と読むと、壊れた状態を揃っていると言ってしまう。
 async function porcelain(repo: string, file: string): Promise<string> {
   const result = await git(repo, ["status", "--porcelain", "--", file]);
+  if (result.code !== 0) throw new Error(`git status failed (exit ${result.code})`);
   return result.stdout.trim();
 }
 
@@ -142,6 +144,8 @@ async function isAncestor(
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
   const result = await git(repo, ["merge-base", "--is-ancestor", ancestor, descendant]);
+  // 終了コード 1 は「祖先ではない」。それ以外は git の失敗。
+  if (result.code !== 0 && result.code !== 1) throw new Error(`git merge-base failed (exit ${result.code})`);
   cache.set(key, result.code === 0);
   return result.code === 0;
 }
