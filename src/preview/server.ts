@@ -50,9 +50,9 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
   if (url.pathname === "/screen") {
     // 渡されたパスをファイルとして開かない。検査済みの画面の一覧から、同じ名前のものを探すだけ。
     const view = views.find((candidate) => candidate.screen === url.searchParams.get("file"));
-    if (view) return send(response, 200, renderScreenPage(view, language));
+    if (view) return send(response, 200, renderScreenPage(view, views, language));
   }
-  return send(response, 404, renderNotFound(language));
+  return send(response, 404, renderNotFound(views, language));
 }
 
 /** 自分のマシンからだけ見られる場所で待ち受ける。 */

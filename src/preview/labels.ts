@@ -7,6 +7,8 @@ export interface Labels {
   back: string;
   noScreens: string;
   problems: string;
+  onThisPage: string;
+  summary(total: number, behind: number): string;
   screenStatus: Record<ScreenStatus, string>;
 }
 
@@ -16,6 +18,8 @@ export const LABELS: Record<Language, Labels> = {
     back: "All screens",
     noScreens: "No screens found",
     problems: "Problems",
+    onThisPage: "On this page",
+    summary: (total, behind) => `${total} screens · ${behind} need attention`,
     screenStatus: {
       aligned: "up to date",
       stale: "code is newer",
@@ -30,6 +34,8 @@ export const LABELS: Record<Language, Labels> = {
     back: "画面の一覧",
     noScreens: "画面が見つかりません",
     problems: "指摘",
+    onThisPage: "このページ",
+    summary: (total, behind) => `${total} 画面 · 要確認 ${behind}`,
     screenStatus: {
       aligned: "揃っている",
       stale: "実装の方が新しい",
