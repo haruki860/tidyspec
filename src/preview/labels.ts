@@ -10,6 +10,8 @@ export interface Labels {
   ungrouped: string;
   notInSchema: string;
   onThisPage: string;
+  lastChange: string;
+  truncated: string;
   summary(total: number, behind: number): string;
   screenStatus: Record<ScreenStatus, string>;
 }
@@ -23,6 +25,8 @@ export const LABELS: Record<Language, Labels> = {
     ungrouped: "General",
     notInSchema: "not in the schema",
     onThisPage: "On this page",
+    lastChange: "Last change to this spec",
+    truncated: "Showing the first lines only",
     summary: (total, behind) => `${total} screens · ${behind} need attention`,
     screenStatus: {
       aligned: "up to date",
@@ -41,6 +45,8 @@ export const LABELS: Record<Language, Labels> = {
     ungrouped: "全般",
     notInSchema: "スキーマにない",
     onThisPage: "このページ",
+    lastChange: "この仕様の直近の変更",
+    truncated: "先頭の行だけ表示しています",
     summary: (total, behind) => `${total} 画面 · 要確認 ${behind}`,
     screenStatus: {
       aligned: "揃っている",

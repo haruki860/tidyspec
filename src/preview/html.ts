@@ -1,4 +1,5 @@
 import type { Inspection, ScreenInspection } from "../checks/status.js";
+import type { SpecChange } from "../core/diff.js";
 import { HEADINGS, type Language, SECTION_KEYS, type SectionKey } from "../core/language.js";
 import { MESSAGES, type Messages } from "../core/messages.js";
 import { type Item, type Problem, severityOf } from "../core/parse.js";
@@ -182,18 +183,38 @@ function toc(language: Language): string {
   return `<nav class="toc"><div class="group">${escapeHtml(LABELS[language].onThisPage)}</div>${links.join("")}</nav>`;
 }
 
+/** 画面ファイルを最後に変えたコミットの差分。行の頭の記号は、色だけに頼らないよう文字でも出す。 */
+function changeBlock(change: SpecChange, language: Language): string {
+  const labels = LABELS[language];
+  const rows = change.lines
+    .map(
+      (line) =>
+        `<div class="diff-${line.kind}"><span class="sign">${line.kind === "add" ? "+" : "−"}</span>${escapeHtml(line.text)}</div>`,
+    )
+    .join("");
+  const note = change.truncated ? `<p class="hint">${escapeHtml(labels.truncated)}</p>` : "";
+  return `<section class="change">
+<h2>${escapeHtml(labels.lastChange)}</h2>
+<p class="hint"><code>${escapeHtml(change.commit)}</code> · ${escapeHtml(change.date)} · ${escapeHtml(change.subject)}</p>
+<div class="diff">${rows}</div>
+${note}
+</section>`;
+}
+
 /** 一つの画面。 */
 export function renderScreenPage(
   view: ScreenInspection,
   inspection: Inspection,
-  language: Language,
+  options: { language: Language; change: SpecChange | undefined },
 ): string {
+  const { language, change } = options;
   const main = `<main>
 <p class="eyebrow">${escapeHtml(LABELS[language].screens)}</p>
 <h1>${escapeHtml(screenTitle(view))}</h1>
 <div class="meta">${badge(view, language)}<span class="path">${escapeHtml(view.screen)}</span></div>
 ${problemList(view.problems, language)}
 ${SECTION_KEYS.map((key) => section(view, key, { language, schema: inspection.schema })).join("\n")}
+${change === undefined ? "" : changeBlock(change, language)}
 </main>
 ${toc(language)}`;
   return shell(
