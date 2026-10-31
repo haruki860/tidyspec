@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MAX_LINE_LENGTH, hasErrors, parseScreen, splitCodeLine } from "../src/parse.js";
+import { DEFAULT_MAX_LINE_LENGTH, hasErrors, parseScreen as parseWith, splitCodeLine, type ParseOptions } from "../src/parse.js";
+
+// このファイルのフィクスチャは日本語の見出し
+const parseScreen = (source: string, options: ParseOptions = {}) => parseWith(source, { language: "ja", ...options });
 
 const valid = `# ログイン
 
@@ -179,5 +182,35 @@ describe("parseScreen", () => {
         "missing-heading",
       ]);
     });
+  });
+});
+
+describe("language", () => {
+  const english = readFileSync(new URL("../examples/shop-en/login.md", import.meta.url), "utf8");
+
+  it("既定は英語の見出しで、英語のサンプルを問題なく読む", () => {
+    const { screen, problems } = parseWith(english);
+    expect(problems).toEqual([]);
+    expect(screen.title).toBe("Login");
+    expect(screen.spec).toHaveLength(3);
+    expect(screen.code.map((entry) => entry.path)).toEqual(["src/auth/lock.ts", "src/auth/login.ts", "src/pages/login.tsx"]);
+    expect(screen.data.map((item) => item.text)).toEqual(["users", "sessions"]);
+  });
+
+  it("英語の設定で、日本語の見出しは決まった見出しとして読まれない", () => {
+    const { problems } = parseWith(valid);
+    expect(problems.filter((p) => p.kind === "unknown-heading")).toHaveLength(4);
+    expect(problems.filter((p) => p.kind === "missing-heading").map((p) => p.detail)).toEqual(["Spec", "Design", "Code", "Data"]);
+  });
+
+  it("日本語の設定で、英語の見出しは読まれず、無い見出しは日本語名で言う", () => {
+    const { problems } = parseWith(english, { language: "ja" });
+    expect(problems.filter((p) => p.kind === "missing-heading").map((p) => p.detail)).toEqual(["仕様", "設計", "コード", "データ"]);
+  });
+
+  it("英語でも、データの行は長さを見ず、他の行は見る", () => {
+    const long = "a".repeat(DEFAULT_MAX_LINE_LENGTH + 1);
+    expect(parseWith(english.replace("- users", `- ${long}`)).problems).toEqual([]);
+    expect(parseWith(english.replace("The lock is per account, never per IP address", long)).problems.map((p) => p.kind)).toEqual(["long-line"]);
   });
 });

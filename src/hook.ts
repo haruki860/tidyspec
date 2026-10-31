@@ -1,5 +1,6 @@
 import path from "node:path";
 import { git } from "./git.js";
+import { DEFAULT_LANGUAGE, type Language } from "./language.js";
 import { parseScreen, severityOf, type CodeEntry, type Problem } from "./parse.js";
 
 export interface HookConfig {
@@ -8,12 +9,15 @@ export interface HookConfig {
   /** 実装ファイル。「未登録」を知らせるためだけに使い、止めるかどうかには関わらない */
   implementation: string[];
   maxLineLength?: number;
+  /** 画面ファイルの見出しと、指摘の文言の言語 */
+  language: Language;
 }
 
 // 画面の置き場と実装のパターンは SPEC に無いので、仮の既定値。
 export const DEFAULT_HOOK_CONFIG: HookConfig = {
   screens: ["docs/screens/**/*.md"],
   implementation: ["src/**", "app/**"],
+  language: DEFAULT_LANGUAGE,
 };
 
 export type Violation =
@@ -53,7 +57,7 @@ export async function checkCommit(
       if (changed.has(screen)) violations.push({ kind: "screen-unreadable", screen });
       continue;
     }
-    const { screen: parsed, problems } = parseScreen(source, { maxLineLength: config.maxLineLength });
+    const { screen: parsed, problems } = parseScreen(source, { maxLineLength: config.maxLineLength, language: config.language });
     for (const entry of parsed.code) {
       const key = normalize(entry.path);
       if (key !== undefined) listedBy.set(key, [...(listedBy.get(key) ?? []), screen]);

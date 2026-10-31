@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { checkCommit } from "../src/hook.js";
+import { checkCommit as checkWith, DEFAULT_HOOK_CONFIG, type HookConfig } from "../src/hook.js";
 import { TestRepo } from "./helpers/repo.js";
+
+// このファイルのフィクスチャは日本語の見出し
+const JA: HookConfig = { ...DEFAULT_HOOK_CONFIG, language: "ja" };
+const checkCommit = (repo: string, config: HookConfig = JA) => checkWith(repo, config);
 
 const made: TestRepo[] = [];
 afterEach(() => {
@@ -207,13 +211,13 @@ describe("checkCommit", () => {
     repo.commit("initial");
     repo.write("src/auth/lock.ts", "2");
     stage(repo);
-    const report = await checkCommit(repo.dir, { screens: ["specs/*.md"], implementation: [] });
+    const report = await checkCommit(repo.dir, { ...JA, screens: ["specs/*.md"], implementation: [] });
     expect(report.violations).toEqual([{ kind: "spec-not-updated", file: "src/auth/lock.ts", screens: ["specs/login.md"] }]);
   });
 
   it("git が失敗したら、通さずに例外にする", async () => {
     const repo = baseRepo();
-    await expect(checkCommit(repo.dir, { screens: ["../outside/*.md"], implementation: [] })).rejects.toThrow("git ls-files failed");
+    await expect(checkCommit(repo.dir, { ...JA, screens: ["../outside/*.md"], implementation: [] })).rejects.toThrow("git ls-files failed");
     await expect(checkCommit(`${repo.dir}/not-a-repo`)).rejects.toThrow("failed");
   });
 });

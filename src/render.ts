@@ -1,7 +1,8 @@
 import type { HookReport, Violation } from "./hook.js";
-import type { Problem, ProblemKind } from "./parse.js";
+import { DEFAULT_LANGUAGE, type Language } from "./language.js";
+import { MESSAGES, type Messages } from "./messages.js";
+import type { Problem } from "./parse.js";
 import { severityOf } from "./parse.js";
-import type { FileState } from "./staleness.js";
 import type { ScreenStatusReport } from "./status.js";
 
 /**
@@ -12,41 +13,24 @@ export function sanitize(text: string): string {
   return text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, "?");
 }
 
-const PROBLEM_TEXT: Record<ProblemKind, (problem: Problem) => string> = {
-  "missing-title": () => "タイトル（# ...）がありません",
-  "duplicate-title": (p) => `タイトルが複数あります: ${p.detail}`,
-  "missing-heading": (p) => `見出し「${p.detail}」がありません`,
-  "duplicate-heading": (p) => `見出し「${p.detail}」が複数あります`,
-  "long-line": (p) => `行が長すぎます（${p.detail}文字）。一行に一つの主張にしてください`,
-  "code-line-without-path": (p) => `コードの行にファイルパスがありません: ${p.detail}`,
-  "unknown-heading": (p) => `決まっていない見出しです: ${p.detail}`,
-  "unexpected-heading": (p) => `ここで三段目以降の見出しは使えません: ${p.detail}`,
-  "text-outside-section": (p) => `見出しの外に文章があります: ${p.detail}`,
-  "not-a-bullet": (p) => `箇条書きではない行です: ${p.detail}`,
-  "nested-bullet": (p) => `入れ子の箇条書きは読み取りません: ${p.detail}`,
-};
-
-function describeProblem(problem: Problem): string {
-  return sanitize(PROBLEM_TEXT[problem.kind](problem));
+function describeProblem(m: Messages, problem: Problem): string {
+  return m.problem[problem.kind](sanitize(problem.detail));
 }
 
 function at(screen: string, line: number | null): string {
   return line === null ? sanitize(screen) : `${sanitize(screen)}:${line}`;
 }
 
-function describeViolation(violation: Violation): string {
+function describeViolation(m: Messages, violation: Violation): string {
   switch (violation.kind) {
     case "screen-problem":
-      return `${at(violation.screen, violation.problem.line)}: ${describeProblem(violation.problem)}`;
+      return `${at(violation.screen, violation.problem.line)}: ${describeProblem(m, violation.problem)}`;
     case "screen-unreadable":
-      return `${at(violation.screen, null)}: 読み取れません`;
+      return `${at(violation.screen, null)}: ${m.screenUnreadable}`;
     case "code-file-missing":
-      return `${at(violation.screen, violation.line)}: コードの行が指すファイルがありません: ${sanitize(violation.path)}`;
+      return `${at(violation.screen, violation.line)}: ${m.codeFileMissing(sanitize(violation.path))}`;
     case "spec-not-updated":
-      return [
-        `${sanitize(violation.file)} を変えましたが、これを「コード」に載せている画面が更新されていません。`,
-        `  実装に合わせて、次のどれかの仕様・設計・コード・データを直してください: ${violation.screens.map(sanitize).join(", ")}`,
-      ].join("\n");
+      return m.specNotUpdated(sanitize(violation.file), violation.screens.map(sanitize));
     default: {
       const unreachable: never = violation;
       throw new Error(`unhandled violation: ${JSON.stringify(unreachable)}`);
@@ -54,47 +38,38 @@ function describeViolation(violation: Violation): string {
   }
 }
 
-export function renderCheck(report: HookReport): string {
+export function renderCheck(report: HookReport, language: Language = DEFAULT_LANGUAGE): string {
+  const m = MESSAGES[language];
   const lines: string[] = [];
-  for (const violation of report.violations) lines.push(`エラー ${describeViolation(violation)}`);
+  for (const violation of report.violations) lines.push(`${m.errorLabel} ${describeViolation(m, violation)}`);
   for (const { screen, problem } of report.warnings) {
-    lines.push(`警告 ${at(screen, problem.line)}: ${describeProblem(problem)}`);
+    lines.push(`${m.warningLabel} ${at(screen, problem.line)}: ${describeProblem(m, problem)}`);
   }
-  if (report.unregistered.length > 0) {
-    lines.push(`どの画面の「コード」にも載っていない実装: ${report.unregistered.map(sanitize).join(", ")}`);
-  }
-  if (report.ok) lines.push("仕様の検査: 問題なし");
+  if (report.unregistered.length > 0) lines.push(m.unregistered(report.unregistered.map(sanitize)));
+  if (report.ok) lines.push(m.checkPassed);
   return lines.join("\n");
 }
 
-const FILE_TEXT: Record<FileState, string | null> = {
-  aligned: null,
-  stale: "実装の方が新しい",
-  "working-changes": "作業中の差分あり",
-  untracked: "まだコミットされていない",
-  missing: "ファイルがない",
-  unchecked: "古さを調べていない",
-};
-
-export function renderStatus(reports: ScreenStatusReport[]): string {
+export function renderStatus(reports: ScreenStatusReport[], language: Language = DEFAULT_LANGUAGE): string {
+  const m = MESSAGES[language];
   const lines: string[] = [];
   for (const { screen, problems, staleness } of reports) {
     const marks: string[] = [];
     for (const problem of problems) {
-      const label = severityOf(problem) === "error" ? "エラー" : "警告";
-      const where = problem.line === null ? "" : `${problem.line}行目: `;
-      marks.push(`  ${label} ${where}${describeProblem(problem)}`);
+      const label = severityOf(problem) === "error" ? m.errorLabel : m.warningLabel;
+      const where = problem.line === null ? "" : m.atLine(problem.line);
+      marks.push(`  ${label} ${where}${describeProblem(m, problem)}`);
     }
     for (const file of staleness.files) {
-      const text = FILE_TEXT[file.state];
+      const text = m.fileState[file.state];
       if (text !== null) marks.push(`  ${text}: ${sanitize(file.path)}`);
     }
-    if (staleness.status === "unknown") marks.push("  古さを判定できません（履歴が浅い clone です。fetch-depth: 0 などで全履歴を取ってください）");
-    if (staleness.status === "no-git") marks.push("  古さを判定できません（git の管理下にありません）");
-    lines.push(`${sanitize(screen)}: ${marks.length === 0 ? "揃っている" : ""}`.trimEnd());
+    if (staleness.status === "unknown") marks.push(`  ${m.undeterminedShallow}`);
+    if (staleness.status === "no-git") marks.push(`  ${m.undeterminedNoGit}`);
+    lines.push(`${sanitize(screen)}: ${marks.length === 0 ? m.upToDate : ""}`.trimEnd());
     lines.push(...marks);
   }
-  if (reports.length === 0) lines.push("画面が見つかりません");
+  if (reports.length === 0) lines.push(m.noScreens);
   return lines.join("\n");
 }
 

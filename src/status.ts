@@ -26,7 +26,7 @@ export async function checkAllScreens(repo: string, config: HookConfig): Promise
   for (const screen of screens) {
     const source = await readRegularFile(path.join(repo, screen));
     if (source === undefined) continue;
-    const { screen: parsed, problems } = parseScreen(source, { maxLineLength: config.maxLineLength });
+    const { screen: parsed, problems } = parseScreen(source, { maxLineLength: config.maxLineLength, language: config.language });
     const staleness = await checkStaleness({ repo, screen, code: parsed.code.map((entry) => entry.path) });
     reports.push({ screen, problems, staleness });
   }

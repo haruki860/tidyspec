@@ -24,8 +24,13 @@ describe("parseConfig", () => {
     const result = parseConfig('{"screens":["specs/*.md"],"maxLineLength":60}');
     expect(result).toEqual({
       ok: true,
-      config: { screens: ["specs/*.md"], implementation: DEFAULT_HOOK_CONFIG.implementation, maxLineLength: 60 },
+      config: { ...DEFAULT_HOOK_CONFIG, screens: ["specs/*.md"], maxLineLength: 60 },
     });
+  });
+
+  it("language を選べる。既定は英語", () => {
+    expect(parseConfig('{"language":"ja"}')).toMatchObject({ ok: true, config: { language: "ja" } });
+    expect(parseConfig("{}")).toMatchObject({ ok: true, config: { language: "en" } });
   });
 
   it("implementation は空の配列でもよい（未登録の通知を使わない）", () => {
@@ -33,10 +38,10 @@ describe("parseConfig", () => {
   });
 
   it.each([
-    ["JSON でない", "{oops", "JSON として読めません"],
-    ["配列", "[]", "オブジェクト"],
-    ["null", "null", "オブジェクト"],
-    ["打ち間違いのキー", '{"screen":["a"]}', "知らないキーがあります: screen"],
+    ["JSON でない", "{oops", "not valid JSON"],
+    ["配列", "[]", "JSON object"],
+    ["null", "null", "JSON object"],
+    ["打ち間違いのキー", '{"screen":["a"]}', "unknown keys: screen"],
     ["screens が空", '{"screens":[]}', "screens"],
     ["screens が文字列", '{"screens":"a"}', "screens"],
     ["screens に空文字", '{"screens":[" "]}', "screens"],
@@ -44,6 +49,8 @@ describe("parseConfig", () => {
     ["maxLineLength が小数", '{"maxLineLength":1.5}', "maxLineLength"],
     ["maxLineLength が 0", '{"maxLineLength":0}', "maxLineLength"],
     ["maxLineLength が文字列", '{"maxLineLength":"80"}', "maxLineLength"],
+    ["language が知らない言語", '{"language":"fr"}', "language must be one of: en, ja"],
+    ["language が文字列でない", '{"language":1}', "language"],
   ])("%s はエラー", (_name, text, message) => {
     expect(errorOf(text)).toContain(message);
   });
